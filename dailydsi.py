@@ -7,7 +7,7 @@ import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
 
-from indicators.dsi import DSIndicator
+from indicators.oddenhancers import DSIndicator
 from mygoogle.sprint import GoogleSprint
 
 fromdate = datetime.now().date() - timedelta(days=400)
