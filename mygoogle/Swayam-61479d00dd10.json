@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "swayam-06-10-2005",
+  "private_key_id": "61479d00dd1032ef3e36a8091df1b4471e2c4b2b",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCpECM+9tMahzUu\n9nSQE4kvsQGwWENfgizfTVyoFqxSaKzBClAhc/fxz97ShooiuT9gqWkZo/1tLcrU\nK29Skz717iidr1Se8AY3xQ9OercEzeNIt5Bg+EAIh8Y2trEHlByzSMST21mpQ7A9\ndVcllklaZB/DCc8OdepFwsmT3WeMgc6vGwPiOqG19fRO3EvwwkF3JPHVO6DBrH99\nfY8UWCPVB/w6PBHVR3f7eVC2QolFuijfAdQm2KIrEOogvy75dB5fuOLb5Ob4NGMU\noMR2Do/Fy8wvpd01UdBshDmV3NBt0UxrKfWhlW/ZGlXNk9wycuWJixnjmeTldrBZ\n6TdBGWBpAgMBAAECggEAUMY1ENA87F/NOTLnXi73TKH1fJuvFOLNLaN4sZajnnwE\njfavckxGGnKGs280cIKxlS1b2bRQUOmgDt7xwTI40qeHIE+0zns/fUXZmlVnPBRi\nk0ug37O8ZFb6jQmca1KIo+AQi9Qxcn20pqh5iqvTQCy2QClflDkiRVJbnRobbzWO\n8Ae23O+9tdpzxTCsPFVuBjQb17gcz9WoRR2Wzu/JoVnKKRPxUAf+nYApkGsMWr5L\nkwFRz4wgDbsTuHpRixtl3DJqAy/YvH1zApIqU2DyjCklDOnVwBTXthYZK6CLqkkS\nJ+STB+AwsLIopt0Z3gAFjiVwhFKE+imupocxalbtQQKBgQDXbFPCYfVtumQov0Pt\nL7o1jU2jFGjSmZCpx+kpL5XzQHXka9jGOI+C7ye8ZqA1VH1AYNR4voSJM616TELN\nuX1Z3Xo228lgqk2o5YGl2Y1i8DYqgoPhfHA609RmwjeuIwmPrKuWK9WA5Pm0V0vR\nCDKoZ1NVE7qgMOo7qWvqu5G7UwKBgQDI6FUhi3dZFnM8t3Tohib242nugmTBRabz\n+D8CxCHf3Bjd1TSkI8WSodjpmJb5PfAR0akydMXG3cn7YLucdqsmbNrPqps7Hfkt\nCYk73jYKUs6n5+BsqcBLVh8FLOkYyPm8mv0Kdfwq/ULTwEY0za+H+S8D6iP/7M8Z\nHnR4M0+50wKBgAhfQmYUjohELS5UOJyYNUFti23iFizRIQkoJsyd99LrV2mYM2WI\nvzMUflPZHTLVZMTCvp8usFHwuzY8joAWTGPYsq49HnduRvRgbwh2CwOkWEaQqfVy\nc54lq2SO+cD/xZha2pRMgdCvlXDHz7+A9Q8MbPWqfZ9KJ2BINlR6E7DXAoGBAKVL\ngb83n9oMPoOV7PniZex67oztezgItnPDqxP7imNEErFw2P6y77rUrkKC6LPn4bzH\nYw3ARXh4wdWwoKr6d5YFuYFiPJVG89u6HM7E5HFZ7+z1OhAtGajiEmOPr7hUoiQq\n4EXbDL3R4UmWyCxpjiGxQp1V5oiJrVpdVDYRAWdBAoGAc0z2PX/iS2PzezhJikks\nz8QIUbVlluUHz5g0wHal8l6VR8WE5KHWucHmdEUzPJMhcKCKhK4lDKqzfFeYnzQB\nLRY9lGQ9GC3iQWNSdDLg+ar9TG5zQPHin2XlyuMDqTbY5uVLb7sBnww7ex/caRap\nzgFxDvcU3/DcsmRfC3+2qUQ=\n-----END PRIVATE KEY-----\n",
+  "client_email": "swayam@swayam-06-10-2005.iam.gserviceaccount.com",
+  "client_id": "112150293201843854812",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/swayam%40swayam-06-10-2005.iam.gserviceaccount.com"
+}
