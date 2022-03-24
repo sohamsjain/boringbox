@@ -176,7 +176,7 @@ class TasteStretejy(bt.Strategy):
             except KeyError:
                 savedstate = None
             self.resource[dname].ds = DSIndicator(tickdata, dsidata, trenddata, curvedata, savedstate=savedstate,
-                                                  curvebreakoutsonly=dsidata.islive())
+                                                  curvebreakoutsonly=True)
             nonce += 3
 
     def next(self):
