@@ -216,8 +216,8 @@ class DZone:
         self.calculate_score()
 
     def extend_past_powerless_demand(self, demand: Demand, atr):
-        difference = abs(demand.sl - self.sl)
-        if difference < atr:
+        difference = self.sl - demand.sl
+        if 0 <= difference < atr:
             self.set_sl(demand.sl)
             self.demands.append(demand)
 
@@ -354,8 +354,8 @@ class SZone:
         self.calculate_score()
 
     def extend_past_powerless_supply(self, supply: Supply, atr):
-        difference = abs(supply.sl - self.sl)
-        if difference < atr:
+        difference = supply.sl - self.sl
+        if 0 <= difference < atr:
             self.set_sl(supply.sl)
             self.supplies.append(supply)
 
@@ -377,7 +377,7 @@ class SZone:
 
 class DSIndicator(Indicator):
     lines = ('supply', 'demand')
-    params = (('savedstate', None),)
+    params = (('savedstate', None), ('curvebreakoutsonly', False))
 
     def __init__(self):
         self.tickdatano = 0
@@ -394,7 +394,8 @@ class DSIndicator(Indicator):
         self.boring = Boring(self.datas[self.dsidatano])
         self.atr = AverageTrueRange(self.datas[self.dsidatano])
         self.trend = Trend(self.datas[self.trenddatano], callback=self.trendcallback)
-        self.curve = Curve(self.datas[self.curvedatano], callback=self.curvecallback)
+        self.curve = Curve(self.datas[self.curvedatano], callback=self.curvecallback,
+                           breakoutsonly=self.p.curvebreakoutsonly)
         self.supplies: List[Supply] = list()
         self.demands: List[Demand] = list()
         self.demandzones: List[DZone] = list()
@@ -868,7 +869,7 @@ class Base:
 
 class Curve(Indicator):
     lines = ('supply', 'demand')
-    params = (('callback', None),)
+    params = (('callback', None), ('breakoutsonly', False))
 
     def __init__(self):
         self.prevlen = None
@@ -883,6 +884,7 @@ class Curve(Indicator):
         self.lowoncurve = float("-inf")
         self.proximallow = float("-inf")
         self.distallow = float("-inf")
+        self.atrvalue = 0
         self.callback: Callable = self.p.callback
 
     def next(self):
@@ -908,6 +910,9 @@ class Curve(Indicator):
         if low < plow:
             self.lowerlow(low)
 
+        if self.p.breakoutsonly:
+            return
+
         self.checktests(open_, high, low, close)
 
         if self.boring.isboring[0]:
@@ -922,6 +927,8 @@ class Curve(Indicator):
                 self.bearbases.insert(0, self.base)
                 self.bearbasecreated()
                 self.base = Base()
+
+        self.atrvalue = self.atr[0]
 
     def higherhigh(self, high):
         while len(self.bearbases):
@@ -984,7 +991,7 @@ class Curve(Indicator):
                 self.distallow = self.bullbases[0].sl
 
                 region = round(self.proximalhigh - self.proximallow, 2)
-                if region < self.atr[0]:
+                if region < self.atrvalue:
                     if self.bullbases[0].testcount > self.bearbases[0].testcount:
                         self.bullbases.pop(0)
                         self.redrawcurve()
@@ -1042,6 +1049,7 @@ class Curve(Indicator):
             lowoncurve=self.lowoncurve,
             proximallow=self.proximallow,
             distallow=self.distallow,
+            atrvalue=self.atrvalue
         )
         return state
 
@@ -1055,6 +1063,7 @@ class Curve(Indicator):
         self.lowoncurve = savedstate["lowoncurve"]
         self.proximallow = savedstate["proximallow"]
         self.distallow = savedstate["distallow"]
+        self.atrvalue = savedstate["atrvalue"]
 
 
 class Trend(Indicator):
