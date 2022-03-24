@@ -35,3 +35,4 @@ ws2 = wb.worksheet("Zones2")
 df = g.fetch_sheet_values(ws)
 shuffledf = df[columns]
 g.update_sheet(ws2, shuffledf)
+print("Done")
