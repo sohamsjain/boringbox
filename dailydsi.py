@@ -396,7 +396,7 @@ class TestSt2(bt.Strategy):
 
     def next(self):
         global finaldf
-        if str(self.data0.datetime.datetime(0)) == "2022-03-24 15:30:00":
+        if str(self.data0.datetime.datetime(0)) == "2022-04-05 15:30:00":
             allrows = list()
             for dname, val in self.resource.items():
                 ds: DSIndicator = val.ds

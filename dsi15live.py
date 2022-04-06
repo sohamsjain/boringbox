@@ -211,7 +211,7 @@ class TasteStretejy(bt.Strategy):
         #                 notif = f"{dname}:\t {data1.close[0]}\n{'-'} {sz.entry}  SL {sz.sl}  T {sz.target}"
         #                 self.raven.send_all_clients(notif)
 
-        if str(self.data0.datetime.datetime(0)) == "2022-03-24 15:30:00":
+        if str(self.data0.datetime.datetime(0)) == "2022-04-01 15:30:00":
             self.cerebro.runstop()
 
     def serialize(self):

@@ -180,7 +180,7 @@ class TasteStretejy(bt.Strategy):
 
     def next(self):
 
-        if str(self.data0.datetime.datetime(0)) == "2022-03-24 15:30:00":
+        if str(self.data0.datetime.datetime(0)) == "2022-04-01 15:30:00":
             self.cerebro.runstop()
 
     def serialize(self):
