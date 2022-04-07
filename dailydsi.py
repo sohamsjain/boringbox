@@ -365,7 +365,7 @@ invalid = [
     "IRCTC_STK_NSE",
     "DIXON_STK_NSE",
 ]
-filename = "dsi.obj"
+filename = "dsicache/day/dsi.obj"
 g = GoogleSprint()
 wb = g.gs.open("Demand Supply Daily")
 ws = wb.worksheet("Zones1")

@@ -220,12 +220,12 @@ class TasteStretejy(bt.Strategy):
             self.states.update(blocks)
         else:
             self.states = blocks
-        with open("15dsi.obj", "wb") as file:
+        with open("dsicache/min15/15dsi.obj", "wb") as file:
             pickle.dump(self.states, file)
 
     def deserialize(self):
         try:
-            with open("15dsi.obj", "rb") as file:
+            with open("dsicache/min15/15dsi.obj", "rb") as file:
                 dsidict = pickle.load(file)
             return dsidict
         except (EOFError, FileNotFoundError):
