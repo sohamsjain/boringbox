@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from queue import Queue
 from typing import List, Optional, Callable
 
 import math
@@ -9,6 +10,17 @@ from indicators.boring import *
 from indicators.pivots import *
 
 trends = ["Side Trend", "Up Trend", "Down Trend"]
+
+
+class Notifications:
+    NotificationEnds = -1
+    SavedStateRestored = 0
+    DemandZoneCreated = 1
+    DemandZoneModified = 2
+    DemandZoneBroken = 3
+    SupplyZoneCreated = 4
+    SupplyZoneModified = 5
+    SupplyZoneBroken = 6
 
 
 class Demand:
@@ -405,6 +417,7 @@ class DSIndicator(Indicator):
         self.onsplcreated = self.trialcall_spl
         self.small_pivot = self.pivots.small_pivot
         self.lasttimestamp = None
+        self.notifications = Queue()
 
     def next(self):
 
@@ -448,6 +461,13 @@ class DSIndicator(Indicator):
         if self.p.savedstate and self.p.savedstate["lasttimestamp"] == self.datas[self.dsidatano].datetime.datetime(0):
             self.rebase(self.p.savedstate)
             self.p.savedstate = None
+            self.notify(Notifications.SavedStateRestored)
+
+    def notify(self, notification, body=None):
+        self.notifications.put(notification)
+        if body:
+            self.notifications.put(body)
+        self.notifications.put(Notifications.NotificationEnds)
 
     def trialcall_sph(self):
         self.onsphcreated = self.sphcreated
@@ -460,7 +480,7 @@ class DSIndicator(Indicator):
             szone = self.supplyzones[0]
             if high > szone.sl:
                 self.supplyzones.remove(szone)
-                self.supplyzonebroken()
+                self.supplyzonebroken(szone)
             else:
                 break
 
@@ -484,7 +504,7 @@ class DSIndicator(Indicator):
             dzone = self.demandzones[0]
             if low < dzone.sl:
                 self.demandzones.remove(dzone)
-                self.demandzonebroken()
+                self.demandzonebroken(dzone)
             else:
                 break
 
@@ -622,11 +642,11 @@ class DSIndicator(Indicator):
                 merged = previous_zone.merge(szone=szone, atr=self.atr[0])
                 createzone = not merged
                 if merged:
-                    self.supplyzonemodified()
+                    self.supplyzonemodified(previous_zone)
 
             if createzone:
                 self.supplyzones.insert(0, szone)
-                self.supplyzonecreated()
+                self.supplyzonecreated(szone)
 
             self.supplyzones[0].supplies[0].set_szone(self.supplyzones[0])
 
@@ -718,11 +738,11 @@ class DSIndicator(Indicator):
                 merged = previous_zone.merge(dzone=dzone, atr=self.atr[0])
                 createzone = not merged
                 if merged:
-                    self.demandzonemodified()
+                    self.demandzonemodified(previous_zone)
 
             if createzone:
                 self.demandzones.insert(0, dzone)
-                self.demandzonecreated()
+                self.demandzonecreated(dzone)
 
             self.demandzones[0].demands[0].dzone = self.demandzones[0]
 
@@ -769,22 +789,28 @@ class DSIndicator(Indicator):
         for szone in self.supplyzones:
             szone.relocate_curve()
 
-    def demandzonecreated(self):
+    def demandzonecreated(self, dzone):
+        self.notify(Notifications.DemandZoneCreated, body=dzone)
         self.reset_szone_targets()
 
-    def demandzonemodified(self):
+    def demandzonemodified(self, dzone):
+        self.notify(Notifications.DemandZoneModified, body=dzone)
         self.reset_szone_targets()
 
-    def demandzonebroken(self):
+    def demandzonebroken(self, dzone):
+        self.notify(Notifications.DemandZoneBroken, body=dzone)
         self.reset_szone_targets()
 
-    def supplyzonecreated(self):
+    def supplyzonecreated(self, szone):
+        self.notify(Notifications.SupplyZoneCreated, body=szone)
         self.reset_dzone_targets()
 
-    def supplyzonemodified(self):
+    def supplyzonemodified(self, szone):
+        self.notify(Notifications.SupplyZoneModified, body=szone)
         self.reset_dzone_targets()
 
-    def supplyzonebroken(self):
+    def supplyzonebroken(self, szone):
+        self.notify(Notifications.SupplyZoneBroken, body=szone)
         self.reset_dzone_targets()
 
     def reset_dzone_targets(self):
