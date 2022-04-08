@@ -1,14 +1,27 @@
 import pickle
-from datetime import datetime, timedelta
+import sys
+from datetime import timedelta, time
 
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
+from dsicache.allobjects import loadobjects, dsi15_lts
 from indicators.oddenhancers import DSIndicator
+from mytelegram.raven import Raven
+from tradingschedule import lastclosingtime
 
-fromdate = datetime.now().date() - timedelta(days=30)
-sessionstart = datetime.now().time().replace(hour=9, minute=15, second=0, microsecond=0)
-sessionend = datetime.now().time().replace(hour=15, minute=30, second=0, microsecond=0)
+raven = Raven()
+
+if dsi15_lts == lastclosingtime:
+    msg = f"Cache Update\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsi15_lts}"
+    print(msg)
+    raven.send_all_clients(msg)
+    raven.stop()
+    sys.exit()
+
+fromdate = lastclosingtime.date() - timedelta(days=30)
+sessionstart = time(hour=9, minute=15)
+sessionend = time(hour=15, minute=30)
 valid = [
     'NIFTY50_IND_NSE',
     'BANKNIFTY_IND_NSE',
@@ -180,7 +193,7 @@ class TasteStretejy(bt.Strategy):
 
     def next(self):
 
-        if str(self.data0.datetime.datetime(0)) == "2022-04-01 15:30:00":
+        if self.data0.datetime.datetime(0) == lastclosingtime:
             self.cerebro.runstop()
 
     def serialize(self):
@@ -237,16 +250,19 @@ def getdata(ticker):
 
 tickers = ['NIFTY50_IND_NSE', "BANKNIFTY_IND_NSE"]
 
-if __name__ == '__main__':
+while tickers:
+    t = tickers[0]
+    tickers = tickers[1:]
+    print(t)
+    cerebro = bt.Cerebro(runonce=False)
+    cerebro.addstrategy(TasteStretejy)
+    store = bt.stores.IBStore(port=7497)
+    cerebro.setbroker(store.getbroker())
+    cerebro.addcalendar("BSE")
+    getdata(t)
+    thestrats = cerebro.run()
 
-    while tickers:
-        t = tickers[0]
-        tickers = tickers[1:]
-        print(t)
-        cerebro = bt.Cerebro(runonce=False)
-        cerebro.addstrategy(TasteStretejy)
-        store = bt.stores.IBStore(port=7497)
-        cerebro.setbroker(store.getbroker())
-        cerebro.addcalendar("BSE")
-        getdata(t)
-        thestrats = cerebro.run()
+loadobjects()
+msg = f"Cache Update\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsi15_lts}"
+raven.send_all_clients(msg)
+raven.stop()

@@ -1,14 +1,15 @@
 import pickle
-from datetime import datetime, timedelta
+from datetime import timedelta, time
 
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
 from indicators.oddenhancers import DSIndicator
+from tradingschedule import nextclosingtime
 
-fromdate = datetime.now().date() - timedelta(days=3)
-sessionstart = datetime.now().time().replace(hour=9, minute=15, second=0, microsecond=0)
-sessionend = datetime.now().time().replace(hour=15, minute=30, second=0, microsecond=0)
+fromdate = nextclosingtime.date() - timedelta(days=3)
+sessionstart = time(hour=9, minute=15)
+sessionend = time(hour=15, minute=30)
 valid = [
     'NIFTY50_IND_NSE',
     'BANKNIFTY_IND_NSE',
@@ -211,7 +212,7 @@ class TasteStretejy(bt.Strategy):
         #                 notif = f"{dname}:\t {data1.close[0]}\n{'-'} {sz.entry}  SL {sz.sl}  T {sz.target}"
         #                 self.raven.send_all_clients(notif)
 
-        if str(self.data0.datetime.datetime(0)) == "2022-04-01 15:30:00":
+        if self.data0.datetime.datetime(0) == nextclosingtime:
             self.cerebro.runstop()
 
     def serialize(self):

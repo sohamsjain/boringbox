@@ -1,18 +1,39 @@
-import gc
 import pickle
+import sys
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta, time
 
 import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
 
+from checkAdjustedClose import adjustedClose
+from dsicache.allobjects import loadobjects, dsiD_lts
 from indicators.oddenhancers import DSIndicator
 from mygoogle.sprint import GoogleSprint
+from mytelegram.raven import Raven
+from tradingschedule import lastclosingtime
 
-fromdate = datetime.now().date() - timedelta(days=400)
-sessionstart = datetime.now().time().replace(hour=9, minute=15, second=0, microsecond=0)
-sessionend = datetime.now().time().replace(hour=15, minute=30, second=0, microsecond=0)
+raven = Raven()
+
+if lastclosingtime == dsiD_lts:
+    msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+    print(msg)
+    raven.send_all_clients(msg)
+    raven.stop()
+    sys.exit()
+
+if not adjustedClose:
+    msg = f"Aborting update\n Reason: Close not adjusted" \
+        "\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsiD_lts}"
+    print(msg)
+    raven.send_all_clients(msg)
+    raven.stop()
+    sys.exit()
+
+fromdate = lastclosingtime.date() - timedelta(days=500)
+sessionstart = time(hour=9, minute=15)
+sessionend = time(hour=15, minute=30)
 
 # tickers = ["NIFTY50_IND_NSE",
 #            "BANKNIFTY_IND_NSE",
@@ -396,7 +417,7 @@ class TestSt2(bt.Strategy):
 
     def next(self):
         global finaldf
-        if str(self.data0.datetime.datetime(0)) == "2022-04-05 15:30:00":
+        if self.data0.datetime.datetime(0) == lastclosingtime:
             allrows = list()
             for dname, val in self.resource.items():
                 ds: DSIndicator = val.ds
@@ -572,5 +593,10 @@ while tickers:
     except Exception as e:
         print(t[0])
         print(traceback.format_exc())
+        raven.send_all_clients(t[0])
+        raven.send_all_clients(traceback.format_exc())
 
-    gc.collect()
+loadobjects()
+msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+raven.send_all_clients(msg)
+raven.stop()

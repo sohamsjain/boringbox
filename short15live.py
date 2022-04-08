@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, inspect
 from indicators.supertrend import SuperTrend
 from models import *
 from mytelegram.raven import Raven
+from tradingschedule import nextclosingtime
 
 
 class Db:
@@ -195,13 +196,12 @@ fromdate = datetime.now().date() - timedelta(days=3)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
-year, month, day = 2022, 4, 6
 tradingday = AutoOrderedDict()
-tradingday.date = datetime(year=year, month=month, day=day)
-tradingday.sessionstart = datetime(year=year, month=month, day=day, hour=9, minute=15)
-tradingday.lastorder = datetime(year=year, month=month, day=day, hour=15, minute=0)
-tradingday.intraday_squareoff = datetime(year=year, month=month, day=day, hour=15, minute=25)
-tradingday.sessionend = datetime(year=year, month=month, day=day, hour=15, minute=30)
+tradingday.date = nextclosingtime.date()
+tradingday.sessionstart = nextclosingtime.replace(hour=9, minute=15)
+tradingday.lastorder = nextclosingtime.replace(hour=15, minute=0)
+tradingday.intraday_squareoff = nextclosingtime.replace(hour=15, minute=25)
+tradingday.sessionend = nextclosingtime
 
 
 class MyStrategy(bt.Strategy):
