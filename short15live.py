@@ -6,7 +6,6 @@ from typing import Dict, Any
 import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
-from pynse import Nse, IndexSymbol
 from sqlalchemy import create_engine, inspect
 
 from indicators.supertrend import SuperTrend
@@ -186,10 +185,6 @@ def nearest_put(underlying, expiry, price):
     fdf = fdf[fdf.strike == strike]
     return get_contract(symbol=fdf.symbol.values[0])
 
-
-nse = Nse()
-btsymboltopynse = {"NIFTY50_IND_NSE": IndexSymbol.Nifty50,
-                   "BANKNIFTY_IND_NSE": IndexSymbol.NiftyBank}
 
 # datafeed params
 fromdate = datetime.now().date() - timedelta(days=3)
@@ -613,10 +608,8 @@ class MyStrategy(bt.Strategy):
 
     def initialize_xones(self, dsi: DSIndicator):
 
-        btsymbol = dsi.data0._dataname
-        symbol = btsymboltopynse[btsymbol]
         atr = dsi.curve.atrvalue
-        close = float(nse.get_indices(symbol)["last"][0])
+        close = dsi.data0.close[0]
         upperband = round(close + atr, 2)
         lowerband = round(close - atr, 2)
 

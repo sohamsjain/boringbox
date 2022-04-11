@@ -7,7 +7,6 @@ import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
 
-from checkAdjustedClose import adjustedClose
 from dsicache.allobjects import loadobjects, dsiD_lts
 from indicators.oddenhancers import DSIndicator
 from mygoogle.sprint import GoogleSprint
@@ -18,14 +17,6 @@ raven = Raven()
 
 if lastclosingtime == dsiD_lts:
     msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
-    print(msg)
-    raven.send_all_clients(msg)
-    raven.stop()
-    sys.exit()
-
-if not adjustedClose:
-    msg = f"Aborting update\n Reason: Close not adjusted" \
-        "\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsiD_lts}"
     print(msg)
     raven.send_all_clients(msg)
     raven.stop()
