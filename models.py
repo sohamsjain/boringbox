@@ -93,6 +93,7 @@ class Xone:
             self.stoploss -= self.stopbuffer
         else:
             self.stoploss += self.stopbuffer
+        self.stoploss = round(self.stoploss, 2)
 
 
 class Child:
