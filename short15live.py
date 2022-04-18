@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect
 from indicators.supertrend import SuperTrend
 from models import *
 from mytelegram.raven import Raven
-from tradingschedule import nextclosingtime
+from tradingschedule import nextclosingtime, lastclosingtime
 
 
 class Db:
@@ -187,7 +187,7 @@ def nearest_put(underlying, expiry, price):
 
 
 # datafeed params
-fromdate = datetime.now().date() - timedelta(days=3)
+fromdate = lastclosingtime.date() - timedelta(days=3)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
