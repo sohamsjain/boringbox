@@ -832,7 +832,7 @@ class MyStrategy(bt.Strategy):
     def nextrowindex(self):
         allvalues = self.sheet.get_all_values()
         row = len(allvalues) + 1
-        index = row + 3
+        index = row - 3
         return row, index
 
     def updatesheet(self, xone):
