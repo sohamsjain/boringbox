@@ -8,7 +8,7 @@ class SuperTrendBand(bt.Indicator):
     """
     Helper inidcator for Supertrend indicator
     """
-    params = (('period', 10), ('multiplier', 3))
+    params = (('period', 10), ('multiplier', 2))
     lines = ('basic_ub', 'basic_lb', 'final_ub', 'final_lb')
 
     def __init__(self):
@@ -38,7 +38,7 @@ class SuperTrend(bt.Indicator):
     """
     Super Trend indicator
     """
-    params = (('period', 10), ('multiplier', 3))
+    params = (('period', 10), ('multiplier', 2))
     lines = ('super_trend',)
     plotinfo = dict(subplot=False)
 

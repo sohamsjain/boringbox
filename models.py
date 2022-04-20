@@ -16,6 +16,14 @@ tradecols = dict(index=0, tdin=1, ttin=2, tdout=3, ttout=4, adin=5, atin=6, adou
                  csym=28, cexpiry=29, cstrike=30, cright=31, cstatus=32, ctype=33, csize=34, cbuyprice=35, cbuycost=36,
                  cbuycomm=37, csellprice=38, csellcost=39, csellcomm=40)
 
+lasttoken = 0
+
+
+def gettoken():
+    global lasttoken
+    lasttoken += 1
+    return lasttoken
+
 
 class Contract:
     def __init__(self, underlying, sectype, exchange, currency, symbol, strike, right, expiry, multiplier, btsymbol,
@@ -36,6 +44,7 @@ class Contract:
 class Xone:
     def __init__(self, origin, contract: Contract, status, created_at=None, entry_at=None, exit_at=None, opened_at=None,
                  closed_at=None, pnl=None):
+        self.token = gettoken()
         self.origin: DZone = origin
         self.contract: Contract = contract
         self.symbol = self.contract.symbol
@@ -87,7 +96,7 @@ class Xone:
 
     def notification(self):
         type = '+' if self.type == XoneType.BULLISH else '-'
-        notif = f"{self.status}\n{self.symbol}:\t {self.lastprice}\n{type} {self.entry}  SL {self.stoploss}  T {self.target}"
+        notif = f"{self.token}\t{self.status}\n{self.symbol}:\t {self.lastprice}\n{type} {self.entry}  SL {self.stoploss}  T {self.target}"
         for child in self.children:
             ctype = '+' if child.type == ChildType.BUY else '-'
             notif += "\n______________________________\n"
@@ -162,7 +171,7 @@ class Child:
         self.btsymbol = self.contract.btsymbol
         self.expiry = self.contract.expiry
         self.type = ChildType.BUY if self.xone.type == XoneType.BULLISH else ChildType.SELL
-        self.type = ChildType.invert(self.sectype) if self.contract.right == "P" else self.sectype
+        self.type = ChildType.invert(self.type) if self.contract.right == "P" else self.type
         self.size = size
         self.status = status
         self.created_at = created_at
@@ -178,6 +187,8 @@ class Child:
         self.pnl = pnl
         self.isbuy = True if self.type == ChildType.BUY else False
         self.datagroup = None
+        self.supertrend_stoploss = False
+        self.supertrenddatalts = None
 
     def attributes(self):
         attributes = dict(symbol=self.symbol,

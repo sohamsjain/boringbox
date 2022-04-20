@@ -561,6 +561,38 @@ class MyStrategy(bt.Strategy):
 
                         xone.close_children = True
 
+                if not xone.close_children:
+                    child = xone.children[0]
+                    if not child.supertrend_stoploss:
+                        firstCheck = False
+                        datamin5 = child.datagroup.supertrenddata
+                        if child.supertrenddatalts is None:
+                            child.supertrenddatalts = datamin5.datetime.datetime(0)
+                            firstCheck = True
+                        if firstCheck or (datamin5.datetime.datetime(0) > child.supertrenddatalts):
+                            supertrend = child.datagroup.supertrend
+                            if datamin5.close[0] < supertrend[0]:
+                                child.supertrend_stoploss = True
+
+                    else:
+                        datamin5 = child.datagroup.supertrenddata
+                        stddt = datamin5.datetime.datetime(0)  # Supertrenddata datetime
+                        if stddt > child.supertrenddatalts:
+                            child.supertrenddatalts = stddt
+                            supertrend = child.datagroup.supertrend
+                            if datamin5.close[0] > supertrend[0]:
+                                if xone.status == XoneStatus.ENTRY:
+                                    xone.status = XoneStatus.STRENDSLHIT
+                                    xone.nextstatus = XoneStatus.STRENDSL
+                                    xone.exit_at = dtime
+                                    xone.exithit = data.close[0]
+                                    xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                                         zexithit=xone.exithit)
+                                    self.updatesheet(xone)
+                                    self.ravenq.put(xone.notification())
+
+                                xone.close_children = True
+
                 if xone.close_children:
                     xone.close_children = False
                     if xone.nextstatus is None:
@@ -767,7 +799,7 @@ class MyStrategy(bt.Strategy):
         data.addfilter(SecondsBackwardLookingFilter)
 
         tickdata = self.cerebro.adddata(data)
-        resampleddata = self.cerebro.resampledata(data, timeframe=bt.TimeFrame.Minutes, compression=15)
+        resampleddata = self.cerebro.resampledata(data, timeframe=bt.TimeFrame.Minutes, compression=5)
 
         tickdata.reset()
         resampleddata.reset()
