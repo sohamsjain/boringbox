@@ -56,8 +56,8 @@ raven = Raven()
 for ticker, close in lastclose_dict.items():
     s15 = dsi15x[ticker]
     atr = round(s15["curvestate"]["atrvalue"], 2)
-    upperband = round(close + atr, 2)
-    lowerband = round(close - atr, 2)
+    upperband = round(close + atr * 3, 2)
+    lowerband = round(close - atr * 3, 2)
     print(atr, close, upperband, lowerband)
 
     message = ""
