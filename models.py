@@ -1,9 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date, time
 
 from indicators.oddenhancers import *
 from util import *
+
+tindex, tdin, ttin, tdout, ttout, adin, atin, adout, atout, zsym, zstatus, zscore, ztype, \
+zentry, zorgsl, zsl, ztarget, zentryhit, zexithit, pnl, oerisk, oereward, oeratio, oetest, \
+oestrength, oetab, oecurve, oetrend, csym, cexpiry, cstrike, cright, cstatus, ctype, \
+csize, cbuyprice, cbuycost, cbuycomm, csellprice, csellcost, csellcomm = range(41)
+
+tradecols = dict(index=0, tdin=1, ttin=2, tdout=3, ttout=4, adin=5, atin=6, adout=7, atout=8, zsym=9, zstatus=10,
+                 zscore=11, ztype=12, zentry=13, zorgsl=14, zsl=15, ztarget=16, zentryhit=17, zexithit=18, pnl=19,
+                 oerisk=20, oereward=21, oeratio=22, oetest=23, oestrength=24, oetab=25, oecurve=26, oetrend=27,
+                 csym=28, cexpiry=29, cstrike=30, cright=31, cstatus=32, ctype=33, csize=34, cbuyprice=35, cbuycost=36,
+                 cbuycomm=37, csellprice=38, csellcost=39, csellcomm=40)
 
 
 class Contract:
@@ -35,6 +46,8 @@ class Xone:
         self.originalstoploss = self.origin.sl
         self.stoploss = self.origin.sl  # Gets calculated inside extend_stoploss method
         self.target = self.origin.target
+        self.entryhit = None
+        self.exithit = None
         self.lastprice = None
         self.type = XoneType.identify(self.entry, self.stoploss)
         self.created_at: Optional[datetime] = created_at
@@ -54,6 +67,9 @@ class Xone:
         self.datr = self.origin.dsi.curve.atrvalue
         self.stopbuffer = round(self.datr * 0.02, 2)
         self.extend_stoploss(self.origin.sl)
+        self.row = None
+        self.index = None
+        self.statlist = [""] * 41
 
     def attributes(self):
         attributes = dict(symbol=self.symbol,
@@ -94,6 +110,44 @@ class Xone:
         else:
             self.stoploss += self.stopbuffer
         self.stoploss = round(self.stoploss, 2)
+
+    def init_statlist(self, row, index):
+        self.row = row
+        self.index = index
+        self.statlist[tindex] = index
+        self.statlist[tdin] = str(self.entry_at.date())
+        self.statlist[ttin] = str(self.entry_at.time())
+        self.statlist[zsym] = self.symbol
+        self.statlist[zstatus] = self.status
+        self.statlist[zscore] = self.origin.score
+        self.statlist[ztype] = self.type
+        self.statlist[zentry] = self.entry
+        self.statlist[zorgsl] = self.originalstoploss
+        self.statlist[zsl] = self.stoploss
+        self.statlist[ztarget] = self.target
+        self.statlist[zentryhit] = self.entryhit
+        self.statlist[oerisk] = self.origin.risk
+        self.statlist[oereward] = self.origin.reward
+        self.statlist[oeratio] = self.origin.ratio
+        self.statlist[oetest] = self.origin.testcount
+        self.statlist[oestrength] = self.origin.strength
+        self.statlist[oetab] = self.origin.timeatbase
+        self.statlist[oecurve] = self.origin.location
+        self.statlist[oetrend] = self.origin.trend
+        self.statlist[csym] = self.children[0].symbol
+        self.statlist[cexpiry] = str(self.children[0].expiry)
+        self.statlist[cstrike] = self.children[0].contract.strike
+        self.statlist[cright] = self.children[0].contract.right
+        self.statlist[cstatus] = self.children[0].status
+        self.statlist[ctype] = self.children[0].type
+
+    def update_statlist(self, **kwargs):
+        for k, v in kwargs.items():
+            if k in tradecols:
+                indexofk = tradecols[k]
+                if type(v) in [datetime, date, time]:
+                    v = str(v)
+                self.statlist[indexofk] = v
 
 
 class Child:

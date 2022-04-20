@@ -1,5 +1,5 @@
 import pickle
-from datetime import timedelta, time
+from datetime import timedelta
 from threading import Thread
 from typing import Dict, Any
 
@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, inspect
 
 from indicators.supertrend import SuperTrend
 from models import *
+from mygoogle.sprint import GoogleSprint
 from mytelegram.raven import Raven
 from tradingschedule import nextclosingtime, lastclosingtime
 
@@ -219,6 +220,10 @@ class MyStrategy(bt.Strategy):
         self.raventhread = Thread(target=self.sendaraven, name="raven", daemon=True)
         self.raventhread.start()
 
+        self.sprint = GoogleSprint()
+        self.spread = self.sprint.gs.open("Short15Live Trading Reports")
+        self.sheet = self.spread.worksheet("Trades")
+
         self.states = self.deserialize()
         self.states_restored = datetime.max
 
@@ -318,6 +323,14 @@ class MyStrategy(bt.Strategy):
                         xone.status = XoneStatus.ABORT
                         break
 
+                xone.update_statlist(adin=xone.opened_at.date(), atin=xone.opened_at.time(), zstatus=xone.status,
+                                     cstatus=child.status, csize=child.filled,
+                                     cbuyprice=child.buying_price, cbuycost=child.buying_cost,
+                                     cbuycomm=child.buying_commission,
+                                     csellprice=child.selling_price, csellcost=child.selling_cost,
+                                     csellcomm=child.selling_commission)
+                self.updatesheet(xone)
+
             elif xone.status in XoneStatus.OPEN:
                 xone.closed_at = datetime.now()
                 xone.pnl = sum([c.pnl for c in xone.children if c.pnl is not None])
@@ -325,12 +338,27 @@ class MyStrategy(bt.Strategy):
                 self.removexone(xone)
                 self.openxones.remove(xone)
 
+                xone.update_statlist(adout=xone.closed_at.date(), atout=xone.closed_at.time(), zstatus=xone.status,
+                                     cstatus=child.status,
+                                     cbuyprice=child.buying_price, cbuycost=child.buying_cost,
+                                     cbuycomm=child.buying_commission,
+                                     csellprice=child.selling_price, csellcost=child.selling_cost,
+                                     csellcomm=child.selling_commission, pnl=xone.pnl)
+                self.updatesheet(xone)
+
             elif xone.status == XoneStatus.ABORT:
                 xone.closed_at = datetime.now()
                 xone.pnl = sum([c.pnl for c in xone.children if c.pnl is not None])
                 xone.status = XoneStatus.FORCECLOSED
                 self.removexone(xone)
                 self.openxones.remove(xone)
+                xone.update_statlist(adout=xone.closed_at.date(), atout=xone.closed_at.time(), zstatus=xone.status,
+                                     cstatus=child.status,
+                                     cbuyprice=child.buying_price, cbuycost=child.buying_cost,
+                                     cbuycomm=child.buying_commission,
+                                     csellprice=child.selling_price, csellcost=child.selling_cost,
+                                     csellcomm=child.selling_commission, pnl=xone.pnl)
+                self.updatesheet(xone)
 
             self.ravenq.put(xone.notification())
 
@@ -366,7 +394,7 @@ class MyStrategy(bt.Strategy):
 
         for xone in self.allxones:
             data = xone.datagroup.tickdata
-
+            dtime = data.datetime.datetime(0)
             try:  # In case a new datafeed is added, it may not produce a bar
                 xone.lastprice = xone.datagroup.tickdata.close[
                     0]  # This is a work around to eliminate unnecessary IndexError
@@ -385,6 +413,11 @@ class MyStrategy(bt.Strategy):
                         xone.status = XoneStatus.MISSED
                         for child in xone.children:
                             child.status = ChildStatus.UNUSED
+                        xone.exit_at = dtime
+                        xone.exithit = data.close[0]
+                        xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(), pnl=0,
+                                             zexithit=xone.exithit, zstatus=xone.status)
+                        self.updatesheet(xone)
                         self.removexone(xone)
                         self.ravenq.put(xone.notification())
                         continue
@@ -393,6 +426,12 @@ class MyStrategy(bt.Strategy):
                         xone.status = XoneStatus.FAILED
                         for child in xone.children:
                             child.status = ChildStatus.UNUSED
+                        xone.exit_at = dtime
+                        xone.exithit = data.close[0]
+                        if xone.index:
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(), pnl=0,
+                                                 zexithit=xone.exithit, zstatus=xone.status)
+                            self.updatesheet(xone)
                         self.removexone(xone)
                         self.ravenq.put(xone.notification())
                         continue
@@ -400,8 +439,13 @@ class MyStrategy(bt.Strategy):
                     if data.low[0] <= xone.entry:
                         if xone.status == XoneStatus.CREATED:
                             xone.status = XoneStatus.ENTRYHIT
-                            xone.entry_at = datetime.now()
+                            xone.entry_at = dtime
+                            xone.entryhit = data.close[0]
                             self.ravenq.put(xone.notification())
+                            row, index = self.nextrowindex()
+                            xone.init_statlist(row, index)
+                            self.updatesheet(xone)
+
                         if xone.tradable():
                             xone.open_children = True
 
@@ -410,6 +454,11 @@ class MyStrategy(bt.Strategy):
                         xone.status = XoneStatus.MISSED
                         for child in xone.children:
                             child.status = ChildStatus.UNUSED
+                        xone.exit_at = dtime
+                        xone.exithit = data.close[0]
+                        xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(), pnl=0,
+                                             zexithit=xone.exithit, zstatus=xone.status)
+                        self.updatesheet(xone)
                         self.removexone(xone)
                         self.ravenq.put(xone.notification())
                         continue
@@ -418,6 +467,12 @@ class MyStrategy(bt.Strategy):
                         xone.status = XoneStatus.FAILED
                         for child in xone.children:
                             child.status = ChildStatus.UNUSED
+                        xone.exit_at = dtime
+                        xone.exithit = data.close[0]
+                        if xone.index:
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(), pnl=0,
+                                                 zexithit=xone.exithit, zstatus=xone.status)
+                            self.updatesheet(xone)
                         self.removexone(xone)
                         self.ravenq.put(xone.notification())
                         continue
@@ -425,8 +480,13 @@ class MyStrategy(bt.Strategy):
                     if data.high[0] >= xone.entry:
                         if xone.status == XoneStatus.CREATED:
                             xone.status = XoneStatus.ENTRYHIT
-                            xone.entry_at = datetime.now()
+                            xone.entry_at = dtime
+                            xone.entryhit = data.close[0]
                             self.ravenq.put(xone.notification())
+                            row, index = self.nextrowindex()
+                            xone.init_statlist(row, index)
+                            self.updatesheet(xone)
+
                         if xone.tradable():
                             xone.open_children = True
 
@@ -453,7 +513,11 @@ class MyStrategy(bt.Strategy):
                         if xone.status == XoneStatus.ENTRY:
                             xone.status = XoneStatus.STOPLOSSHIT
                             xone.nextstatus = XoneStatus.STOPLOSS
-                            xone.exit_at = datetime.now()
+                            xone.exit_at = dtime
+                            xone.exithit = data.close[0]
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                                 zexithit=xone.exithit)
+                            self.updatesheet(xone)
                             self.ravenq.put(xone.notification())
 
                         xone.close_children = True
@@ -462,7 +526,10 @@ class MyStrategy(bt.Strategy):
                         if xone.status == XoneStatus.ENTRY:
                             xone.status = XoneStatus.TARGETHIT
                             xone.nextstatus = XoneStatus.TARGET
-                            xone.exit_at = datetime.now()
+                            xone.exit_at = dtime
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                                 zexithit=xone.exithit)
+                            self.updatesheet(xone)
                             self.ravenq.put(xone.notification())
 
                         xone.close_children = True
@@ -472,7 +539,11 @@ class MyStrategy(bt.Strategy):
                         if xone.status == XoneStatus.ENTRY:
                             xone.status = XoneStatus.STOPLOSSHIT
                             xone.nextstatus = XoneStatus.STOPLOSS
-                            xone.exit_at = datetime.now()
+                            xone.exit_at = dtime
+                            xone.exithit = data.close[0]
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                                 zexithit=xone.exithit)
+                            self.updatesheet(xone)
                             self.ravenq.put(xone.notification())
 
                         xone.close_children = True
@@ -481,7 +552,11 @@ class MyStrategy(bt.Strategy):
                         if xone.status == XoneStatus.ENTRY:
                             xone.status = XoneStatus.TARGETHIT
                             xone.nextstatus = XoneStatus.TARGET
-                            xone.exit_at = datetime.now()
+                            xone.exit_at = dtime
+                            xone.exithit = data.close[0]
+                            xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                                 zexithit=xone.exithit)
+                            self.updatesheet(xone)
                             self.ravenq.put(xone.notification())
 
                         xone.close_children = True
@@ -515,9 +590,12 @@ class MyStrategy(bt.Strategy):
                 if len(xone.orders):
                     xone.orders.append(None)
                 else:
-                    xone.closed_at = datetime.now()
+                    xone.closed_at = dtime
                     xone.pnl = sum([c.pnl for c in xone.children if c.pnl is not None])
                     xone.status = XoneStatus.FORCECLOSED
+                    xone.update_statlist(adout=xone.closed_at.date(), atout=xone.closed_at.time(), zstatus=xone.status,
+                                         pnl=xone.pnl)
+                    self.updatesheet(xone)
                     self.removexone(xone)
                     self.openxones.remove(xone)
 
@@ -529,6 +607,11 @@ class MyStrategy(bt.Strategy):
                 self.intraday_squareoff_triggered = True
                 if self.openxones:
                     for xone in self.openxones:
+                        xone.exithit = xone.datagroup.tickdata.close[0]
+                        xone.exit_at = self.data0.datetime.datetime(0)
+                        xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                             zexithit=xone.exithit)
+                        self.updatesheet(xone)
                         if xone.isbullish:
                             xone.nextstatus = XoneStatus.PROFIT if xone.lastprice > xone.entry else XoneStatus.LOSS
                         else:
@@ -713,6 +796,15 @@ class MyStrategy(bt.Strategy):
         self.ravenq = Queue()
         while True:
             self.raven.send_all_clients(self.ravenq.get())
+
+    def nextrowindex(self):
+        allvalues = self.sheet.get_all_values()
+        row = len(allvalues) + 1
+        index = row + 3
+        return row, index
+
+    def updatesheet(self, xone):
+        self.sheet.update(f"A{xone.row}", [xone.statlist])
 
     def deserialize(self):
         try:
