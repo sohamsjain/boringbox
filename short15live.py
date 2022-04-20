@@ -693,8 +693,8 @@ class MyStrategy(bt.Strategy):
 
         atr = dsi.curve.atrvalue
         close = dsi.data0.close[0]
-        upperband = round(close + atr, 2)
-        lowerband = round(close - atr, 2)
+        upperband = round(close + atr * 3, 2)
+        lowerband = round(close - atr * 3, 2)
 
         zones = []
 
