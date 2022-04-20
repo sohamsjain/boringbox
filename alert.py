@@ -77,7 +77,7 @@ for ticker, close in lastclose_dict.items():
     #####################################
     # ____________________________________
 
-    message += f"\n{ticker.split('_')[0]} ₹{round(close)} @ {atr}\n\n"
+    message += f"\n{ticker.split('_')[0]} -{round(close)} @ {round(atr)}\n\n"
 
     # ____________________________________
     #####################################
