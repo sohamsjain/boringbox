@@ -72,7 +72,7 @@ for ticker, close in lastclose_dict.items():
 
     while len(szs):
         sz = szs.pop(-1)
-        message += f"-{str(round(sz.entry))} SL: {str(round(sz.sl))} ® {str(round(sz.ratio))} Ω {str(sz.score)}\n"
+        message += f"-{str(round(sz.entry))} SL {str(round(sz.sl))} ® {str(round(sz.ratio))} Ω {str(sz.score)}\n"
 
     #####################################
     # ____________________________________
@@ -91,7 +91,7 @@ for ticker, close in lastclose_dict.items():
 
     while len(dzs):
         dz = dzs.pop(0)
-        message += f"+{str(round(dz.entry))} SL: {str(round(dz.sl))} ® {str(round(dz.ratio))} Ω {str(dz.score)}\n"
+        message += f"+{str(round(dz.entry))} SL {str(round(dz.sl))} ® {str(round(dz.ratio))} Ω {str(dz.score)}\n"
 
     raven.send_all_clients(message)
 
