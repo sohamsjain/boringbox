@@ -218,7 +218,11 @@ for ticker, close in lastclose_dict.items():
 
     while len(szs):
         sz = szs.pop(-1)
-        message += f"-{str(round(sz.entry))} SL {str(round(sz.sl))} ® {str(round(sz.ratio))} Ω {str(sz.score)}\n"
+        entry = str(round(sz.entry))
+        sl = str(round(sz.sl))
+        ratio = str(round(sz.ratio)) if sz.ratio != float("inf") else "inf"
+        score = str(sz.score)
+        message += f"-{entry} SL {sl} ® {ratio} Ω {score}\n"
 
     #####################################
     # ____________________________________
@@ -237,7 +241,11 @@ for ticker, close in lastclose_dict.items():
 
     while len(dzs):
         dz = dzs.pop(0)
-        message += f"+{str(round(dz.entry))} SL {str(round(dz.sl))} ® {str(round(dz.ratio))} Ω {str(dz.score)}\n"
+        entry = str(round(dz.entry))
+        sl = str(round(dz.sl))
+        ratio = str(round(dz.ratio)) if dz.ratio != float("inf") else "inf"
+        score = str(dz.score)
+        message += f"+{entry} SL {sl} ® {ratio} Ω {score}\n"
 
     raven.send_all_clients(message)
 
