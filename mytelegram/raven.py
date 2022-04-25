@@ -5,8 +5,8 @@ from os.path import join, dirname
 from urllib.parse import quote
 
 from telegram import ChatAction
-from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 from telegram.error import TimedOut
+from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
 raven_token = "1730778566:AAHlVAOJiry8gb77b9nUmzgOYZuDxW9Po7M"
 raven_json_path = join(dirname(__file__), 'raven.json')
