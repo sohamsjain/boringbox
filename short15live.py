@@ -6,6 +6,7 @@ from typing import Dict, Any
 import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
+from backtrader.utils.dateintern import num2date
 from sqlalchemy import create_engine, inspect
 
 from indicators.supertrend import SuperTrend
@@ -268,34 +269,32 @@ class MyStrategy(bt.Strategy):
             if order.isbuy():
 
                 child.buying_price = order.executed.price
-                child.buying_cost = order.executed.value
-                child.buying_commission = order.executed.comm
+                child.filled += order.executed.size
+                child.buying_cost = child.buying_price * child.filled
+                child.buying_commission = round(order.executed.comm)
 
                 if child.isbuy:
-                    child.filled += order.executed.size
                     child.status = ChildStatus.BOUGHT
-                    child.opened_at = datetime.now()
+                    child.opened_at = num2date(order.executed.dt)
                 else:
-                    child.filled += order.executed.size
                     child.status = ChildStatus.SQUAREDOFF
-                    child.closed_at = datetime.now()
+                    child.closed_at = num2date(order.executed.dt)
                     child.pnl = child.selling_cost - child.buying_cost
 
             else:
 
                 child.selling_price = order.executed.price
-                child.selling_cost = order.executed.value
-                child.selling_commission = order.executed.comm
+                child.filled += order.executed.size
+                child.selling_cost = child.selling_price * child.filled
+                child.selling_commission = round(order.executed.comm)
 
                 if child.isbuy:
-                    child.filled += order.executed.size
                     child.status = ChildStatus.SQUAREDOFF
-                    child.closed_at = datetime.now()
+                    child.closed_at = num2date(order.executed.dt)
                     child.pnl = child.selling_cost - child.buying_cost
                 else:
-                    child.filled += order.executed.size
                     child.status = ChildStatus.SOLD
-                    child.opened_at = datetime.now()
+                    child.opened_at = num2date(order.executed.dt)
 
         elif order.status == order.Canceled:
             child.status = ChildStatus.CANCELLED
@@ -315,7 +314,7 @@ class MyStrategy(bt.Strategy):
                 self.openordercount -= 1
 
                 xone.status = XoneStatus.ENTRY
-                xone.opened_at = datetime.now()
+                xone.opened_at = num2date(order.executed.dt)
                 self.openxones.append(xone)
 
                 for child in xone.children:
@@ -332,7 +331,7 @@ class MyStrategy(bt.Strategy):
                 self.updatesheet(xone)
 
             elif xone.status in XoneStatus.OPEN:
-                xone.closed_at = datetime.now()
+                xone.closed_at = num2date(order.executed.dt)
                 xone.pnl = sum([c.pnl for c in xone.children if c.pnl is not None])
                 xone.status = xone.nextstatus
                 self.removexone(xone)
@@ -347,7 +346,7 @@ class MyStrategy(bt.Strategy):
                 self.updatesheet(xone)
 
             elif xone.status == XoneStatus.ABORT:
-                xone.closed_at = datetime.now()
+                xone.closed_at = num2date(order.executed.dt)
                 xone.pnl = sum([c.pnl for c in xone.children if c.pnl is not None])
                 xone.status = XoneStatus.FORCECLOSED
                 self.removexone(xone)

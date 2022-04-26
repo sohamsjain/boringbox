@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, date, time
 
+from pandas import Timestamp
+
 from indicators.oddenhancers import *
 from util import *
 
@@ -35,7 +37,7 @@ class Contract:
         self.symbol = symbol
         self.strike = strike
         self.right = right
-        self.expiry: Optional[datetime] = expiry
+        self.expiry: Optional[datetime] = Timestamp(expiry).to_pydatetime()
         self.multiplier = multiplier
         self.btsymbol = btsymbol
         self.lotsize = lotsize
