@@ -12,6 +12,8 @@ def listener(message):
         raven.send_all_clients("Restart TWS on EC2")
 
 
-store = IBStore(host="52.70.61.124", port=7497, _debug=False)
+store = IBStore(port=7497)
 store.conn.registerAll(listener)
 store.start()
+store.stop()
+raven.stop()
