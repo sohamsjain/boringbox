@@ -5,10 +5,10 @@ from typing import Optional
 
 import backtrader as bt
 import pandas as pd
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, and_, or_
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
+
+from mydatabase.database import *
 
 # Address
 HOST = ""
@@ -16,8 +16,6 @@ PORT = 7496
 
 # Resources
 NSELOTSIZECSV = "https://archives.nseindia.com/content/fo/fo_mktlots.csv"
-
-Base = declarative_base()
 
 
 class SecType:
@@ -27,44 +25,9 @@ class SecType:
     OPT = "OPT"
 
 
-class Contract(Base):
-    __tablename__ = 'contracts'
-    id = Column(Integer, primary_key=True)
-    underlying = Column(String(16))
-    sectype = Column(String(8))
-    exchange = Column(String(8))
-    currency = Column(String(8))
-    symbol = Column(String(64), primary_key=True)
-    strike = Column(Float)
-    right = Column(String(8))
-    expiry = Column(DateTime)
-    multiplier = Column(Integer)
-    btsymbol = Column(String(64))
-    lotsize = Column(Integer)
-
-
 store = None
 db = None
 lotsize: Optional[pd.DataFrame] = None
-
-
-class Db:
-
-    def __init__(self):
-        self.dialect = "mysql"
-        self.driver = "pymysql"
-        self.username = "root"
-        self.password = "Soham19jain98"
-        self.host = "localhost"
-        self.port = "3306"
-        self.database = "cerebelle2"
-        self.engine = create_engine(
-            f"{self.dialect}+{self.driver}://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}",
-            echo=False, pool_size=10, max_overflow=20)
-        self.tables = self.engine.table_names()
-        Base.metadata.create_all(self.engine)
-        self.session_factory = sessionmaker(bind=self.engine)
-        self.scoped_session = scoped_session(self.session_factory)
 
 
 def getlotsizefromnse():

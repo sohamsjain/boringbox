@@ -8,7 +8,6 @@ from telegram import ChatAction
 from telegram.error import TimedOut
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
-spark_token = "1378229252:AAEqkng6XHLXAclp890pObptiZypTpQ_ttc"
 spark_json_path = join(dirname(__file__), 'spark.json')
 
 logging.basicConfig(filename='spark.log', level=logging.FATAL)
@@ -39,16 +38,20 @@ def dict_to_str(dictionary, pro='', epi='', kv_sep=': ', elem_sep='\n', keys=())
 
 
 class Spark:
-    def __init__(self, token=None, jsonpath=None):
-        token = token or spark_token
+    def __init__(self, jsonpath=None):
         self.init_file = jsonpath or spark_json_path
 
-        self.clients: dict = self.read_key_from_settings("Clients")
+        self.token: str = self.read_key_from_settings("token")
+        if self.token is None:
+            self.token = input("Please Enter Api Token: ")
+            self.write_key_to_settings("token", self.token)
+
+        self.clients: dict = self.read_key_from_settings("clients")
         if self.clients is None:
             self.clients = {}
-            self.write_key_to_settings('Clients', self.clients)
+            self.write_key_to_settings('clients', self.clients)
 
-        self.updater = Updater(token, use_context=True)
+        self.updater = Updater(self.token, use_context=True)
         self.dispatcher = self.updater.dispatcher
         self.bot = self.updater.bot
         self.manager = None
@@ -104,7 +107,7 @@ class Spark:
         return None
 
     def save(self):
-        self.write_key_to_settings('Clients', self.clients)
+        self.write_key_to_settings('clients', self.clients)
 
     def stop(self):
         self.updater.stop()
@@ -158,4 +161,4 @@ class Spark:
 
 
 if __name__ == '__main__':
-    spark = Spark(spark_token, spark_json_path)
+    spark = Spark(spark_json_path)

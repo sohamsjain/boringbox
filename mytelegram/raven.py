@@ -8,7 +8,6 @@ from telegram import ChatAction
 from telegram.error import TimedOut
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
-raven_token = "1730778566:AAHlVAOJiry8gb77b9nUmzgOYZuDxW9Po7M"
 raven_json_path = join(dirname(__file__), 'raven.json')
 
 logging.basicConfig(filename='raven.log', level=logging.FATAL)
@@ -39,16 +38,20 @@ def dict_to_str(dictionary, pro='', epi='', kv_sep=': ', elem_sep='\n', keys=())
 
 
 class Raven:
-    def __init__(self, token=None, jsonpath=None):
-        token = token or raven_token
+    def __init__(self, jsonpath=None):
         self.init_file = jsonpath or raven_json_path
 
-        self.clients: dict = self.read_key_from_settings("Clients")
+        self.token: str = self.read_key_from_settings("token")
+        if self.token is None:
+            self.token = input("Please Enter Api Token: ")
+            self.write_key_to_settings("token", self.token)
+
+        self.clients: dict = self.read_key_from_settings("clients")
         if self.clients is None:
             self.clients = {}
-            self.write_key_to_settings('Clients', self.clients)
+            self.write_key_to_settings('clients', self.clients)
 
-        self.updater = Updater(token, use_context=True)
+        self.updater = Updater(self.token, use_context=True)
         self.dispatcher = self.updater.dispatcher
         self.bot = self.updater.bot
         self.manager = None
@@ -104,7 +107,7 @@ class Raven:
         return None
 
     def save(self):
-        self.write_key_to_settings('Clients', self.clients)
+        self.write_key_to_settings('clients', self.clients)
 
     def stop(self):
         self.updater.stop()
@@ -158,4 +161,4 @@ class Raven:
 
 
 if __name__ == '__main__':
-    raven = Raven(raven_token, raven_json_path)
+    raven = Raven(raven_json_path)
