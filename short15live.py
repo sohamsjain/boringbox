@@ -742,9 +742,9 @@ class MyStrategy(bt.Strategy):
                 break
 
         for z in zones:
-            self.create_xone(z)
+            self.create_xone(z, notify=False)
 
-    def create_xone(self, origin: Optional[DZone]):
+    def create_xone(self, origin: Optional[DZone], notify=True):
 
         if origin in self.xonesbyorigin:
             return self.xonesbyorigin[origin]
@@ -774,7 +774,8 @@ class MyStrategy(bt.Strategy):
         self.allxones.append(xone)
         self.xonesbyorigin.update({xone.origin: xone})
 
-        self.ravenq.put(xone.notification())
+        if notify:
+            self.ravenq.put(xone.notification())
 
     def removexone(self, xone):
         if xone.origin in self.xonesbyorigin:
@@ -903,7 +904,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=True)
+store = bt.stores.IBStore(port=7497, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")
