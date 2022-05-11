@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 import backtrader as bt
 import pandas as pd
+from backtrader.filters import SessionFilter
 from backtrader.utils import AutoOrderedDict
 from backtrader.utils.dateintern import num2date
 from sqlalchemy import create_engine, inspect
@@ -252,6 +253,8 @@ class MyStrategy(bt.Strategy):
                                                            curvebreakoutsonly=True)
             nonce += 3
 
+        self.prevlen = None
+
     def notify_order(self, order):
 
         if order.status in [order.Submitted, order.Accepted, order.Partial]:
@@ -382,6 +385,12 @@ class MyStrategy(bt.Strategy):
         self.next()
 
     def next(self):
+
+        _len = len(self.datas[self.dsidatano])
+        if self.prevlen and _len == self.prevlen:
+            return
+
+        self.prevlen = _len
 
         for btsymbol, resource in self.xone_resource.items():
             dsi: DSIndicator = resource.dsi
@@ -797,6 +806,7 @@ class MyStrategy(bt.Strategy):
                              sessionend=sessionend, backfill_from=backfill)
 
         data.addfilter(SecondsBackwardLookingFilter)
+        data.addfilter(SessionFilter)
 
         tickdata = self.cerebro.adddata(data)
         resampleddata = self.cerebro.resampledata(data, timeframe=bt.TimeFrame.Minutes, compression=5)
@@ -883,7 +893,7 @@ def getdata(ticker):
                          sessionend=sessionend, backfill_from=backfill)
 
     data.addfilter(SecondsBackwardLookingFilter)
-
+    data.addfilter(SessionFilter)
     cerebro.adddata(data)
 
     cerebro.resampledata(data,
