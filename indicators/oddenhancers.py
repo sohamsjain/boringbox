@@ -744,7 +744,7 @@ class DSIndicator(Indicator):
                 self.demandzones.insert(0, dzone)
                 self.demandzonecreated(dzone)
 
-            self.demandzones[0].demands[0].dzone = self.demandzones[0]
+            self.demandzones[0].demands[0].set_dzone(self.demandzones[0])
 
     def checktests(self, open_, high, low, close):
         for szone in self.supplyzones:
