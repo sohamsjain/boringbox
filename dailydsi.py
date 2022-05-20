@@ -1,5 +1,4 @@
 import pickle
-import sys
 import traceback
 from datetime import timedelta, time
 
@@ -7,22 +6,21 @@ import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
 
-from dsicache.allobjects import loadobjects, dsiD_lts
 from indicators.oddenhancers import DSIndicator
 from mygoogle.sprint import GoogleSprint
-from mytelegram.raven import Raven
+from mytelegram.spark import Spark
 from tradingschedule import lastclosingtime
 
-raven = Raven()
+raven = Spark()
 
-if lastclosingtime == dsiD_lts:
-    msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
-    print(msg)
-    raven.send_all_clients(msg)
-    raven.stop()
-    sys.exit()
+# if lastclosingtime == dsiD_lts:
+#     msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+#     print(msg)
+#     raven.send_all_clients(msg)
+#     raven.stop()
+#     sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=500)
+fromdate = lastclosingtime.date() - timedelta(days=4519)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
@@ -377,10 +375,10 @@ invalid = [
     "IRCTC_STK_NSE",
     "DIXON_STK_NSE",
 ]
-filename = "dsicache/day/dsi.obj"
+filename = "dsicache/day/dsi3.obj"
 g = GoogleSprint()
 wb = g.gs.open("Demand Supply Daily")
-ws = wb.worksheet("Zones1")
+ws = wb.worksheet("Zones2")
 finaldf = None
 
 
@@ -494,33 +492,6 @@ class TestSt2(bt.Strategy):
                     "S Trend": strend,
                 }
 
-                # row = {
-                #     "Ticker": dname.split("_")[0],
-                #     "Last Close": close,
-                #     "D Ratio": dratio,
-                #     "D Strength": dstrength,
-                #     "D Test": dtest,
-                #     "D Trend": dtrend,
-                #     "D Curve": dcurve,
-                #     "D Time": dtbase,
-                #     "D Score": d1_score,
-                #     "D Entry": d1_entry,
-                #     "D Stoploss": d1_stoploss,
-                #     "D Points": ptd,
-                #     "D ATR": atd,
-                #     "S Ratio": sratio,
-                #     "S Strength": sstrength,
-                #     "S Test": stest,
-                #     "S Trend": strend,
-                #     "S Curve": scurve,
-                #     "S Time": stbase,
-                #     "S Score": s1_score,
-                #     "S Entry": s1_entry,
-                #     "S Stoploss": s1_stoploss,
-                #     "S Points": pts,
-                #     "S ATR": ats,
-                # }
-
                 allrows.append(row)
 
             df = pd.DataFrame(allrows)
@@ -554,11 +525,11 @@ class TestSt2(bt.Strategy):
         self.serialize()
 
 
-tickers = valid
+tickers = valid[125:150]
 
 while tickers:
-    t = tickers[:50]
-    tickers = tickers[50:]
+    t = tickers[:1]
+    tickers = tickers[1:]
     print(t)
     cerebro = bt.Cerebro(runonce=False)
     cerebro.addstrategy(TestSt2)
@@ -574,11 +545,9 @@ while tickers:
 
         cerebro.adddata(data0)
 
-        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Weeks,
-                             compression=1)
+        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Weeks)
 
-        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Months,
-                             compression=1)
+        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Months)
     try:
         thestrats = cerebro.run(stdstats=False)
     except Exception as e:
@@ -587,7 +556,7 @@ while tickers:
         raven.send_all_clients(t[0])
         raven.send_all_clients(traceback.format_exc())
 
-loadobjects()
-msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
-raven.send_all_clients(msg)
+# loadobjects()
+# msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+# raven.send_all_clients(msg)
 raven.stop()

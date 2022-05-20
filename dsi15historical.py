@@ -19,7 +19,7 @@ if dsi15_lts == lastclosingtime:
     raven.stop()
     sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=30)
+fromdate = lastclosingtime.date() - timedelta(days=1000)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 valid = [
@@ -202,12 +202,12 @@ class TasteStretejy(bt.Strategy):
             self.states.update(blocks)
         else:
             self.states = blocks
-        with open("dsicache/min15/15dsi.obj", "wb") as file:
+        with open("dsicache/min15/15dsi2.obj", "wb") as file:
             pickle.dump(self.states, file)
 
     def deserialize(self):
         try:
-            with open("dsicache/min15/15dsi.obj", "rb") as file:
+            with open("dsicache/min15/15dsi2.obj", "rb") as file:
                 dsidict = pickle.load(file)
             return dsidict
         except (EOFError, FileNotFoundError):
