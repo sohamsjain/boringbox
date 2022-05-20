@@ -1,4 +1,5 @@
 import pickle
+import sys
 from datetime import timedelta
 from threading import Thread
 from typing import Dict, Any
@@ -13,8 +14,11 @@ from sqlalchemy import create_engine, inspect
 from indicators.supertrend import SuperTrend
 from models import *
 from mygoogle.sprint import GoogleSprint
+from mylogger.logger import ExecutionReport
 from mytelegram.raven import Raven
 from tradingschedule import nextclosingtime, lastclosingtime
+
+exRep = ExecutionReport(__file__.split("/")[-1].split(".")[0])
 
 
 class Db:
@@ -922,4 +926,7 @@ cerebro.addcalendar("BSE")
 for index in indexes:
     getdata(index)
 
-thestrats = cerebro.run()
+try:
+    thestrats = cerebro.run()
+except Exception as e:
+    exRep.submit(*sys.exc_info())

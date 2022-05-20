@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, date, time
+from datetime import date, time
 
 from pandas import Timestamp
 
