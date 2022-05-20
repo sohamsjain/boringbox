@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from queue import Queue
 from typing import List, Optional, Callable
 
@@ -25,9 +26,10 @@ class Notifications:
 
 class Demand:
 
-    def __init__(self, index, sl, valid=True):
+    def __init__(self, index, sl, dtsl, valid=True):
         self.index = index
         self.sl = sl
+        self.dtsl: datetime = dtsl
         self.growing = True
         self.power = 0
         self.zonedout = False
@@ -39,8 +41,12 @@ class Demand:
         self.potency = None
         self.breakoutpoint = None
         self.entry = None
+        self.dtentry: Optional[datetime] = None
         self.influence = None
+        self.dtinfluence: Optional[datetime] = None
         self.timeatbase = None
+        self.testopen = False
+        self.testcount = 0
         self.dzone: Optional[DZone] = None
         self.postbreakoutjourney = None
         self.prebreakoutjourney = None
@@ -57,11 +63,15 @@ class Demand:
             self.potency = self.slope * math.sqrt(self.time)
             if self.dzone:
                 self.dzone.set_strength(self.potency)
+                if self.entry:
+                    valid = self.displacement / abs(self.entry - self.sl) >= 2
+                    self.dzone.valid = valid
 
     def set_dzone(self, dzone):
         self.dzone = dzone
         self.dzone.set_strength(self.potency)
         self.dzone.set_timeatbase(self.timeatbase)
+        self.dzone.set_test(self.testcount, self.testopen)
 
     def reindex(self):
         self.index -= 1
@@ -69,9 +79,10 @@ class Demand:
 
 class Supply:
 
-    def __init__(self, index, sl, valid=True):
+    def __init__(self, index, sl, dtsl, valid=True):
         self.index = index
         self.sl = sl
+        self.dtsl: datetime = dtsl
         self.growing = True
         self.power = 0
         self.zonedout = False
@@ -83,8 +94,12 @@ class Supply:
         self.potency = None
         self.breakoutpoint = None
         self.entry = None
+        self.dtentry: Optional[datetime] = None
         self.influence = None
+        self.dtinfluence: Optional[datetime] = None
         self.timeatbase = None
+        self.testopen = False
+        self.testcount = 0
         self.szone: Optional[SZone] = None
         self.postbreakoutjourney = None
         self.prebreakoutjourney = None
@@ -101,28 +116,39 @@ class Supply:
             self.potency = self.slope * math.sqrt(self.time)
             if self.szone:
                 self.szone.set_strength(self.potency)
+                if self.entry:
+                    valid = self.displacement / abs(self.entry - self.sl) >= 2
+                    self.szone.valid = valid
 
     def set_szone(self, szone):
         self.szone = szone
         self.szone.set_strength(self.potency)
         self.szone.set_timeatbase(self.timeatbase)
+        self.szone.testcount = self.testcount
+        self.szone.testopen = self.testopen
 
     def reindex(self):
         self.index -= 1
 
 
 class DZone:
-    def __init__(self, demand: Demand, dsi: DSIndicator):
+    def __init__(self, demand: Demand, dsi: DSIndicator, created_at):
         self.dsi = dsi
         self.sl = demand.sl
+        self.dtsl = demand.dtsl
         self.entry = demand.entry
+        self.dtentry = demand.dtentry
         self.risk = self.entry - self.sl
         self.target = None
+        self.dttarget = None
         self.reward = None
         self.ratio = None
         self.influence = demand.influence
+        self.dtinfluence = demand.dtinfluence
         self.strength = round(demand.potency, 2)
         self.timeatbase = demand.timeatbase
+        self.created_at = created_at
+        self.modified_at = list()
         self.mergers = 0
         self.testopen = False
         self.testcount = 0
@@ -131,6 +157,7 @@ class DZone:
         self.score = 0
         self.relocate_curve()
         self.set_trend()
+        self.valid = False
         self.demands: List[Demand] = list()
         self.demands.insert(0, demand)
 
@@ -171,26 +198,30 @@ class DZone:
 
         self.score = score
 
-    def set_target(self, target):
+    def set_target(self, target, dttarget):
         self.target = target
+        self.dttarget = dttarget
         self.reward = self.target - self.entry
         self.calculate_ratio()
 
-    def set_entry(self, entry):
+    def set_entry(self, entry, dtentry):
         self.entry = entry
+        self.dtentry = dtentry
         self.risk = self.entry - self.sl
         self.relocate_curve()
         if self.target:
             self.reward = self.target - self.entry
             self.calculate_ratio()
 
-    def set_sl(self, sl):
+    def set_sl(self, sl, dtsl):
         self.sl = sl
+        self.dtsl = dtsl
         self.risk = self.entry - self.sl
         self.calculate_ratio()
 
-    def set_influence(self, influence):
+    def set_influence(self, influence, dtinfluence):
         self.influence = influence
+        self.dtinfluence = dtinfluence
 
     def set_strength(self, strength):
         self.strength = round(strength, 2)
@@ -200,13 +231,9 @@ class DZone:
         self.timeatbase = timeatbase
         self.calculate_score()
 
-    def add_merger(self):
-        self.mergers += 1
-        self.testopen = False
-        self.testcount = 0
-
-    def increment_testcount(self):
-        self.testcount += 1
+    def set_test(self, count, _open):
+        self.testcount = count
+        self.testopen = _open
         self.calculate_score()
 
     def set_trend(self):
@@ -230,37 +257,75 @@ class DZone:
     def extend_past_powerless_demand(self, demand: Demand, atr):
         difference = self.sl - demand.sl
         if 0 <= difference < atr:
-            self.set_sl(demand.sl)
+            self.set_sl(demand.sl, demand.dtsl)
             self.demands.append(demand)
 
     def merge(self, dzone: DZone, atr):
         difference = abs(self.sl - dzone.sl)
         underinfluence = dzone.sl <= self.influence
         if underinfluence or difference <= atr:
-            entry = max(self.entry, dzone.entry)
-            influence = max(self.influence, dzone.influence)
+            if dzone.entry > self.entry:
+                self.set_entry(dzone.entry, dzone.dtentry)
+            if dzone.influence > self.influence:
+                self.set_influence(dzone.influence, dzone.dtinfluence)
             if dzone.sl < self.sl:  # In rare cases like dual breakouts in one candle HINDUNILV 2013-04-29
-                self.set_sl(dzone.sl)
-            self.set_entry(entry)
-            self.set_influence(influence)
-            self.add_merger()
+                self.set_sl(dzone.sl, dzone.dtsl)
+            self.mergers += 1
+            self.modified_at.append(self.dsi.lasttimestamp)
             self.demands = dzone.demands + self.demands
             return True
         return False
 
+    def demerge(self, count):
+        self.mergers -= count
+        self.modified_at.append(self.dsi.lasttimestamp)
+
+        sl = float("inf")
+        entry = influence = 0
+        dtentry, dtinfluence, dtsl = None, None, None
+
+        for demand in self.demands:
+
+            if demand.power:
+
+                if demand.entry > entry:
+                    entry = demand.entry
+                    dtentry = demand.dtentry
+
+                if demand.influence > influence:
+                    influence = demand.influence
+                    dtinfluence = demand.dtinfluence
+
+            if demand.sl < sl:
+                sl = demand.sl
+                dtsl = demand.dtsl
+
+        assert entry != 0 and sl != float("inf")
+        self.set_entry(entry, dtentry)
+        self.set_influence(influence, dtinfluence)
+        self.set_sl(sl, dtsl)
+
+        self.demands[0].set_dzone(self)
+
 
 class SZone:
-    def __init__(self, supply: Supply, dsi: DSIndicator):
+    def __init__(self, supply: Supply, dsi: DSIndicator, created_at):
         self.dsi = dsi
         self.sl = supply.sl
+        self.dtsl = supply.dtsl
         self.entry = supply.entry
+        self.dtentry = supply.dtentry
         self.risk = self.sl - self.entry
         self.target = None
+        self.dttarget = None
         self.reward = None
         self.ratio = None
         self.influence = supply.influence
+        self.dtinfluence = supply.dtinfluence
         self.strength = round(supply.potency, 2)
         self.timeatbase = supply.timeatbase
+        self.created_at = created_at
+        self.modified_at = list()
         self.mergers = 0
         self.testopen = False
         self.testcount = 0
@@ -269,6 +334,7 @@ class SZone:
         self.score = 0
         self.relocate_curve()
         self.set_trend()
+        self.valid = False
         self.supplies: List[Supply] = list()
         self.supplies.insert(0, supply)
 
@@ -309,26 +375,30 @@ class SZone:
 
         self.score = score
 
-    def set_target(self, target):
+    def set_target(self, target, dttarget):
         self.target = target
+        self.dttarget = dttarget
         self.reward = self.entry - self.target
         self.calculate_ratio()
 
-    def set_entry(self, entry):
+    def set_entry(self, entry, dtentry):
         self.entry = entry
+        self.dtentry = dtentry
         self.risk = self.sl - self.entry
         self.relocate_curve()
         if self.target:
             self.reward = self.entry - self.target
             self.calculate_ratio()
 
-    def set_sl(self, sl):
+    def set_sl(self, sl, dtsl):
         self.sl = sl
+        self.dtsl = dtsl
         self.risk = self.sl - self.entry
         self.calculate_ratio()
 
-    def set_influence(self, influence):
+    def set_influence(self, influence, dtinfluence):
         self.influence = influence
+        self.dtinfluence = dtinfluence
 
     def set_strength(self, strength):
         self.strength = round(strength, 2)
@@ -338,13 +408,9 @@ class SZone:
         self.timeatbase = timeatbase
         self.calculate_score()
 
-    def add_merger(self):
-        self.mergers += 1
-        self.testopen = False
-        self.testcount = 0
-
-    def increment_testcount(self):
-        self.testcount += 1
+    def set_test(self, count, _open):
+        self.testcount = count
+        self.testopen = _open
         self.calculate_score()
 
     def set_trend(self):
@@ -368,23 +434,55 @@ class SZone:
     def extend_past_powerless_supply(self, supply: Supply, atr):
         difference = supply.sl - self.sl
         if 0 <= difference < atr:
-            self.set_sl(supply.sl)
+            self.set_sl(supply.sl, supply.dtsl)
             self.supplies.append(supply)
 
     def merge(self, szone: SZone, atr):
         difference = abs(self.sl - szone.sl)
         underinfluence = szone.sl >= self.influence
         if underinfluence or difference <= atr:
-            entry = min(self.entry, szone.entry)
-            influence = min(self.influence, szone.influence)
+            if szone.entry < self.entry:
+                self.set_entry(szone.entry, szone.dtentry)
+            if szone.influence < self.influence:
+                self.set_influence(szone.influence, szone.dtinfluence)
             if szone.sl > self.sl:  # In rare cases like dual breakouts in one candle HINDUNILV 2013-04-29
-                self.set_sl(szone.sl)
-            self.set_entry(entry)
-            self.set_influence(influence)
-            self.add_merger()
+                self.set_sl(szone.sl, szone.dtsl)
+            self.mergers += 1
+            self.modified_at.append(self.dsi.lasttimestamp)
             self.supplies = szone.supplies + self.supplies
             return True
         return False
+
+    def demerge(self, count):
+        self.mergers -= count
+        self.modified_at.append(self.dsi.lasttimestamp)
+
+        sl = 0
+        entry = influence = float("inf")
+        dtentry, dtinfluence, dtsl = None, None, None
+
+        for supply in self.supplies:
+
+            if supply.power:
+
+                if supply.entry < entry:
+                    entry = supply.entry
+                    dtentry = supply.dtentry
+
+                if supply.influence < influence:
+                    influence = supply.influence
+                    dtinfluence = supply.dtinfluence
+
+            if supply.sl > sl:
+                sl = supply.sl
+                dtsl = supply.dtsl
+
+        assert entry != float("inf") and sl != 0
+        self.set_entry(entry, dtentry)
+        self.set_influence(influence, dtinfluence)
+        self.set_sl(sl, dtsl)
+
+        self.supplies[0].set_szone(self)
 
 
 class DSIndicator(Indicator):
@@ -443,12 +541,12 @@ class DSIndicator(Indicator):
         phigh = self.datas[self.dsidatano].high[-1]
         plow = self.datas[self.dsidatano].low[-1]
 
-        self.checktests(open_, high, low, close)
-
         if high > phigh:
             self.higherhigh(high)
         if low < plow:
             self.lowerlow(low)
+
+        self.checktests(open_, high, low, close)
 
         if self.pivots.new_sph:
             self.pivots.new_sph = False
@@ -458,7 +556,7 @@ class DSIndicator(Indicator):
             self.pivots.new_spl = False
             self.onsplcreated()
 
-        if self.p.savedstate and self.p.savedstate["lasttimestamp"] == self.datas[self.dsidatano].datetime.datetime(0):
+        if self.p.savedstate and self.p.savedstate["lasttimestamp"] == self.lasttimestamp:
             self.rebase(self.p.savedstate)
             self.p.savedstate = None
             self.notify(Notifications.SavedStateRestored)
@@ -492,6 +590,29 @@ class DSIndicator(Indicator):
             else:
                 break
 
+        if len(self.supplyzones):
+            szone = self.supplyzones[0]
+            demerge_count = 0
+
+            while szone.mergers - demerge_count:
+
+                powerfullsupplies = [supply for supply in szone.supplies if supply.power > 0]
+                assert len(powerfullsupplies) >= 2
+                pfsupply2 = powerfullsupplies[1]
+                pfsupply2index = szone.supplies.index(pfsupply2)
+                lot1 = szone.supplies[:pfsupply2index]
+                maxsl = max([supply.sl for supply in lot1])
+
+                if high > maxsl:
+                    for supply in lot1:
+                        szone.supplies.remove(supply)
+                    demerge_count += 1
+                else:
+                    break
+
+            if demerge_count:
+                szone.demerge(demerge_count)
+
         for demand in self.demands:
             if demand.growing:
                 demand.calculate_potency(high=high, atr=self.atr[0])
@@ -516,6 +637,29 @@ class DSIndicator(Indicator):
             else:
                 break
 
+        if len(self.demandzones):
+            dzone = self.demandzones[0]
+            demerge_count = 0
+
+            while dzone.mergers - demerge_count:
+
+                powerfulldemands = [demand for demand in dzone.demands if demand.power > 0]
+                assert len(powerfulldemands) >= 2
+                pfdemand2 = powerfulldemands[1]
+                pfdemand2index = dzone.demands.index(pfdemand2)
+                lot1 = dzone.demands[:pfdemand2index]
+                minsl = min([demand.sl for demand in lot1])
+
+                if low < minsl:
+                    for demand in lot1:
+                        dzone.demands.remove(demand)
+                    demerge_count += 1
+                else:
+                    break
+
+            if demerge_count:
+                dzone.demerge(demerge_count)
+
         for supply in self.supplies:
             if supply.growing:
                 supply.calculate_potency(low=low, atr=self.atr[0])
@@ -532,7 +676,8 @@ class DSIndicator(Indicator):
 
         latest_demand_index = self.demands[0].index if self.demands else 1
         if self.pivots.spl_index != latest_demand_index:
-            demand = Demand(index=self.pivots.spl_index, sl=self.pivots.spl_value)
+            demand = Demand(index=self.pivots.spl_index, sl=self.pivots.spl_value,
+                            dtsl=self.datas[self.dsidatano].datetime.datetime(self.pivots.spl_index))
             demand.calculate_potency(high=self.pivots.highest_high, atr=self.atr[0])
             self.demands.insert(0, demand)
         else:
@@ -548,7 +693,8 @@ class DSIndicator(Indicator):
 
         latest_supply_index = self.supplies[0].index if self.supplies else 1
         if self.pivots.sph_index != latest_supply_index:
-            supply = Supply(index=self.pivots.sph_index, sl=self.pivots.sph_value)
+            supply = Supply(index=self.pivots.sph_index, sl=self.pivots.sph_value,
+                            dtsl=self.datas[self.dsidatano].datetime.datetime(self.pivots.sph_index))
             supply.calculate_potency(low=self.pivots.lowest_low, atr=self.atr[0])
             self.supplies.insert(0, supply)
         else:
@@ -560,7 +706,9 @@ class DSIndicator(Indicator):
 
             latest_supply_index = self.supplies[0].index if self.supplies else 1
             if self.pivots.highest_high_index != latest_supply_index:
-                supply = Supply(index=self.pivots.highest_high_index, sl=self.pivots.highest_high, valid=False)
+                supply = Supply(index=self.pivots.highest_high_index, sl=self.pivots.highest_high,
+                                dtsl=self.datas[self.dsidatano].datetime.datetime(self.pivots.highest_high_index),
+                                valid=False)
                 supply.calculate_potency(low=self.pivots.lowest_low, atr=self.atr[0])
                 self.supplies.insert(0, supply)
 
@@ -579,6 +727,7 @@ class DSIndicator(Indicator):
 
             boringbodylows = list()
             boringlows = list()
+            boringdts = list()
             timeatbase = 0
 
             if self.boring.isboring[latest_supply.index]:
@@ -594,6 +743,7 @@ class DSIndicator(Indicator):
                     bodylow = self.boring.bodylow[i]
                     boringbodylows.append(bodylow)
                     boringlows.append(self.datas[self.dsidatano].low[i])
+                    boringdts.append(self.datas[self.dsidatano].datetime.datetime(i))
                     timeatbase += 1
                     i -= 1
 
@@ -606,28 +756,50 @@ class DSIndicator(Indicator):
                 bodylow = self.boring.bodylow[i]
                 boringbodylows.append(bodylow)
                 boringlows.append(self.datas[self.dsidatano].low[i])
+                boringdts.append(self.datas[self.dsidatano].datetime.datetime(i))
                 timeatbase += 1
                 i += 1
 
             if boringbodylows:
                 latest_supply.entry = min(boringbodylows)
+                latest_supply.dtentry = boringdts[boringbodylows.index(latest_supply.entry)]
                 latest_supply.influence = min(boringlows)
+                latest_supply.dtinfluence = boringdts[boringlows.index(latest_supply.influence)]
                 latest_supply.timeatbase = timeatbase
 
             else:
-                latest_supply.entry = max(self.boring.bodylow[latest_supply.index], demand.sl)
-                latest_supply.influence = max(self.datas[self.dsidatano].low[latest_supply.index], demand.sl)
+                if self.boring.bodylow[latest_supply.index] > demand.sl:
+                    latest_supply.entry = self.boring.bodylow[latest_supply.index]
+                    latest_supply.dtentry = self.datas[self.dsidatano].datetime.datetime(latest_supply.index)
+                else:
+                    latest_supply.entry = demand.sl
+                    latest_supply.dtentry = demand.dtsl
+
+                if self.datas[self.dsidatano].low[latest_supply.index] > demand.sl:
+                    latest_supply.influence = self.datas[self.dsidatano].low[latest_supply.index]
+                    latest_supply.dtinfluence = self.datas[self.dsidatano].datetime.datetime(latest_supply.index)
+                else:
+                    latest_supply.influence = demand.sl
+                    latest_supply.dtinfluence = demand.dtsl
+
                 latest_supply.timeatbase = 1
 
             if latest_supply.entry == latest_supply.sl:  # In Rare cases eg: one candle supply has o=c=h
                 latest_supply.entry = demand.sl
+                latest_supply.dtentry = demand.dtsl
                 latest_supply.influence = demand.sl
+                latest_supply.dtinfluence = demand.dtsl
                 latest_supply.timeatbase = abs(latest_supply.index) + 1
 
-            szone = SZone(supply=latest_supply, dsi=self)
+            szone = SZone(supply=latest_supply, dsi=self, created_at=self.lasttimestamp)
             latest_supply.zonedout = True
-            target = self.demandzones[0].influence if self.demandzones else 0
-            szone.set_target(target)
+
+            if self.demandzones:
+                closestdz = self.demandzones[0]
+                target, dttarget = closestdz.influence, closestdz.dtinfluence
+            else:
+                target, dttarget = 0, None
+            szone.set_target(target, dttarget)
 
             # check for past powerless supplies
             for supply in self.supplies[1:]:
@@ -656,7 +828,9 @@ class DSIndicator(Indicator):
 
             latest_demand_index = self.demands[0].index if self.demands else 1
             if self.pivots.lowest_low_index != latest_demand_index:
-                demand = Demand(index=self.pivots.lowest_low_index, sl=self.pivots.lowest_low, valid=False)
+                demand = Demand(index=self.pivots.lowest_low_index, sl=self.pivots.lowest_low,
+                                dtsl=self.datas[self.dsidatano].datetime.datetime(self.pivots.lowest_low_index),
+                                valid=False)
                 demand.calculate_potency(high=self.pivots.highest_high, atr=self.atr[0])
                 self.demands.insert(0, demand)
 
@@ -675,6 +849,7 @@ class DSIndicator(Indicator):
 
             boringbodyhighs = list()
             boringhighs = list()
+            boringdts = list()
             timeatbase = 0
 
             if self.boring.isboring[latest_demand.index]:
@@ -690,6 +865,7 @@ class DSIndicator(Indicator):
                     bodyhigh = self.boring.bodyhigh[i]
                     boringbodyhighs.append(bodyhigh)
                     boringhighs.append(self.datas[self.dsidatano].high[i])
+                    boringdts.append(self.datas[self.dsidatano].datetime.datetime(i))
                     timeatbase += 1
                     i -= 1
 
@@ -702,28 +878,49 @@ class DSIndicator(Indicator):
                 bodyhigh = self.boring.bodyhigh[i]
                 boringbodyhighs.append(bodyhigh)
                 boringhighs.append(self.datas[self.dsidatano].high[i])
+                boringdts.append(self.datas[self.dsidatano].datetime.datetime(i))
                 timeatbase += 1
                 i += 1
 
             if boringbodyhighs:
                 latest_demand.entry = max(boringbodyhighs)
+                latest_demand.dtentry = boringdts[boringbodyhighs.index(latest_demand.entry)]
                 latest_demand.influence = max(boringhighs)
+                latest_demand.dtinfluence = boringdts[boringhighs.index(latest_demand.influence)]
                 latest_demand.timeatbase = timeatbase
 
             else:
-                latest_demand.entry = min(self.boring.bodyhigh[latest_demand.index], supply.sl)
-                latest_demand.influence = min(self.datas[self.dsidatano].high[latest_demand.index], supply.sl)
+                if self.boring.bodyhigh[latest_demand.index] < supply.sl:
+                    latest_demand.entry = self.boring.bodyhigh[latest_demand.index]
+                    latest_demand.dtentry = self.datas[self.dsidatano].datetime.datetime(latest_demand.index)
+                else:
+                    latest_demand.entry = supply.sl
+                    latest_demand.dtentry = supply.dtsl
+
+                if self.datas[self.dsidatano].high[latest_demand.index] < supply.sl:
+                    latest_demand.influence = self.datas[self.dsidatano].high[latest_demand.index]
+                    latest_demand.dtinfluence = self.datas[self.dsidatano].datetime.datetime(latest_demand.index)
+                else:
+                    latest_demand.influence = supply.sl
+                    latest_demand.dtinfluence = supply.dtsl
+
                 latest_demand.timeatbase = 1
 
             if latest_demand.entry == latest_demand.sl:  # In Rare cases eg: one candle demand has o=c=l
                 latest_demand.entry = supply.sl
+                latest_demand.dtentry = supply.dtsl
                 latest_demand.influence = supply.sl
+                latest_demand.dtinfluence = supply.dtsl
                 latest_demand.timeatbase = abs(latest_demand.index) + 1
 
-            dzone = DZone(demand=latest_demand, dsi=self)
+            dzone = DZone(demand=latest_demand, dsi=self, created_at=self.lasttimestamp)
             latest_demand.zonedout = True
-            target = self.supplyzones[0].influence if self.supplyzones else float("inf")
-            dzone.set_target(target)
+            if self.supplyzones:
+                closestsz = self.supplyzones[0]
+                target, dttarget = closestsz.influence, closestsz.dtinfluence
+            else:
+                target, dttarget = float("inf"), None
+            dzone.set_target(target, dttarget)
 
             # check for past powerless demands
             for demand in self.demands[1:]:
@@ -747,33 +944,70 @@ class DSIndicator(Indicator):
             self.demandzones[0].demands[0].set_dzone(self.demandzones[0])
 
     def checktests(self, open_, high, low, close):
-        for szone in self.supplyzones:
-            if high <= szone.sl:  # ignore violated zones
-                if szone.testopen:
-                    if open_ < szone.influence:
-                        szone.testopen = False
-                        szone.increment_testcount()
-                if not szone.testopen:
-                    if high > szone.influence:
-                        szone.testopen = True
-                if szone.testopen:
-                    if close < szone.influence:
-                        szone.testopen = False
-                        szone.increment_testcount()
 
-        for dzone in self.demandzones:
-            if low >= dzone.sl:  # ignore violated zones
-                if dzone.testopen:
-                    if open_ > dzone.influence:
-                        dzone.testopen = False
-                        dzone.increment_testcount()
-                if not dzone.testopen:
-                    if low < dzone.influence:
-                        dzone.testopen = True
-                if dzone.testopen:
-                    if close > dzone.influence:
-                        dzone.testopen = False
-                        dzone.increment_testcount()
+        if len(self.supplyzones):
+            szone = self.supplyzones[0]
+            supplies = szone.supplies
+            i = 0
+
+            for supply in supplies:
+
+                i += 1
+                if not supply.power:
+                    continue
+
+                notify = False
+                if supply.testopen:
+                    if open_ < supply.influence:
+                        supply.testopen = False
+                        supply.testcount += 1
+                        notify = True
+
+                if not supply.testopen:
+                    if high > supply.influence:
+                        supply.testopen = True
+                        notify = True
+
+                if supply.testopen:
+                    if close < supply.influence:
+                        supply.testopen = False
+                        supply.testcount += 1
+                        notify = True
+
+                if i == 1 and notify:
+                    szone.set_test(supply.testcount, supply.testopen)
+
+        if len(self.demandzones):
+            dzone = self.demandzones[0]
+            demands = dzone.demands
+            i = 0
+
+            for demand in demands:
+
+                i += 1
+                if not demand.power:
+                    continue
+
+                notify = False
+                if demand.testopen:
+                    if open_ > demand.influence:
+                        demand.testopen = False
+                        demand.testcount += 1
+                        notify = True
+
+                if not demand.testopen:
+                    if low < demand.influence:
+                        demand.testopen = True
+                        notify = True
+
+                if demand.testopen:
+                    if close > demand.influence:
+                        demand.testopen = False
+                        demand.testcount += 1
+                        notify = True
+
+                if i == 1 and notify:
+                    dzone.set_test(demand.testcount, demand.testopen)
 
     def trendcallback(self):
         for dzone in self.demandzones:
@@ -814,14 +1048,23 @@ class DSIndicator(Indicator):
         self.reset_dzone_targets()
 
     def reset_dzone_targets(self):
-        target = self.supplyzones[0].influence if self.supplyzones else float("inf")
+        if self.supplyzones:
+            closestsz = self.supplyzones[0]
+            target, dttarget = closestsz.influence, closestsz.dtinfluence
+        else:
+            target, dttarget = float("inf"), None
         for dzone in self.demandzones:
-            dzone.set_target(target)
+            dzone.set_target(target, dttarget)
 
     def reset_szone_targets(self):
-        target = self.demandzones[0].influence if self.demandzones else 0
+        if self.demandzones:
+            closestdz = self.demandzones[0]
+            target, dttarget = closestdz.influence, closestdz.dtinfluence
+        else:
+            target, dttarget = 0, None
+
         for szone in self.supplyzones:
-            szone.set_target(target)
+            szone.set_target(target, dttarget)
 
     def getstate(self):
 
