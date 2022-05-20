@@ -390,7 +390,7 @@ class MyStrategy(bt.Strategy):
 
     def next(self):
 
-        _len = len(self.datas[self.dsidatano])
+        _len = len(self)
         if self.prevlen and _len == self.prevlen:
             return
 

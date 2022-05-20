@@ -16,7 +16,7 @@ from tradingschedule import lastclosingtime
 raven = Raven()
 
 if lastclosingtime == dsiD_lts:
-    msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+    msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
     print(msg)
     raven.send_all_clients(msg)
     raven.stop()
@@ -588,6 +588,6 @@ while tickers:
         raven.send_all_clients(traceback.format_exc())
 
 loadobjects()
-msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
+msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
 raven.send_all_clients(msg)
 raven.stop()
