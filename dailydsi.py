@@ -1,4 +1,5 @@
 import pickle
+import sys
 import traceback
 from datetime import timedelta, time
 
@@ -6,21 +7,22 @@ import backtrader as bt
 import pandas as pd
 from backtrader.utils import AutoOrderedDict
 
+from dsicache.allobjects import loadobjects, dsiD_lts
 from indicators.oddenhancers import DSIndicator
 from mygoogle.sprint import GoogleSprint
-from mytelegram.spark import Spark
+from mytelegram.raven import Raven
 from tradingschedule import lastclosingtime
 
-raven = Spark()
+raven = Raven()
 
-# if lastclosingtime == dsiD_lts:
-#     msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
-#     print(msg)
-#     raven.send_all_clients(msg)
-#     raven.stop()
-#     sys.exit()
+if lastclosingtime == dsiD_lts:
+    msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
+    print(msg)
+    raven.send_all_clients(msg)
+    raven.stop()
+    sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=4519)
+fromdate = lastclosingtime.date() - timedelta(days=500)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
@@ -375,10 +377,10 @@ invalid = [
     "IRCTC_STK_NSE",
     "DIXON_STK_NSE",
 ]
-filename = "dsicache/day/dsi3.obj"
+filename = "dsicache/day/dsi.obj"
 g = GoogleSprint()
 wb = g.gs.open("Demand Supply Daily")
-ws = wb.worksheet("Zones2")
+ws = wb.worksheet("Zones1")
 finaldf = None
 
 
@@ -525,11 +527,11 @@ class TestSt2(bt.Strategy):
         self.serialize()
 
 
-tickers = valid[125:150]
+tickers = valid
 
 while tickers:
-    t = tickers[:1]
-    tickers = tickers[1:]
+    t = tickers[:50]
+    tickers = tickers[50:]
     print(t)
     cerebro = bt.Cerebro(runonce=False)
     cerebro.addstrategy(TestSt2)
@@ -556,7 +558,7 @@ while tickers:
         raven.send_all_clients(t[0])
         raven.send_all_clients(traceback.format_exc())
 
-# loadobjects()
-# msg = f"Cache Update\n Timeframe: Days\n Compression: 15\n Updated Till: {dsiD_lts}"
-# raven.send_all_clients(msg)
+loadobjects()
+msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
+raven.send_all_clients(msg)
 raven.stop()

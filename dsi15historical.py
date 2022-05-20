@@ -19,7 +19,7 @@ if dsi15_lts == lastclosingtime:
     raven.stop()
     sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=1000)
+fromdate = lastclosingtime.date() - timedelta(days=30)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 valid = [
