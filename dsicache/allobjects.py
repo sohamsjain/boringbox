@@ -1,6 +1,6 @@
 import pickle
 
-dsiobj = r"dsicache/day/dsi.obj"
+dsiobj = r"dsicache/day/Ddsi.obj"
 dsicopyobj = r"dsicache/day/dsicopy.obj"
 dsi15 = r"dsicache/min15/15dsi.obj"
 dsi15copy = r"dsicache/min15/15dsicopy.obj"

@@ -51,9 +51,6 @@ class Boring(Indicator):
 
         self.prevlen = _len
 
-        if _len == 1:
-            return
-
         barbody = round(self.data0.close[0] - self.data0.open[0], 2)
         barrange = round(self.data0.high[0] - self.data0.low[0], 2)
         if barrange == 0:

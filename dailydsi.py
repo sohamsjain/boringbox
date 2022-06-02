@@ -22,361 +22,13 @@ if lastclosingtime == dsiD_lts:
     raven.stop()
     sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=500)
+daysago500 = lastclosingtime.date() - timedelta(days=440)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
-# tickers = ["NIFTY50_IND_NSE",
-#            "BANKNIFTY_IND_NSE",
-#            "RELIANCE_STK_NSE",
-#            "TCS_STK_NSE",
-#            "INFY_STK_NSE",
-#            "WIPRO_STK_NSE",
-#            "ITC_STK_NSE",
-#            "SAIL_STK_NSE",
-#            "LT_STK_NSE",
-#            "HINDUNILV_STK_NSE",
-#            "TATASTEEL_STK_NSE",
-#            "GAIL_STK_NSE",
-#            "HCLTECH_STK_NSE",
-#            "SIEMENS_STK_NSE",
-#            "MARUTI_STK_NSE",
-#            "HINDALCO_STK_NSE",
-#            "AMBUJACEM_STK_NSE",
-#            "CIPLA_STK_NSE",
-#            "ACC_STK_NSE",
-#            "HEROMOTOC_STK_NSE",
-#            "BPCL_STK_NSE",
-#            "ZEEL_STK_NSE",
-#            "DRREDDY_STK_NSE",
-#            "HINDPETRO_STK_NSE",
-#            "DABUR_STK_NSE",
-#            "DLF_STK_NSE",
-#            "NTPC_STK_NSE",
-#            "POWERGRID_STK_NSE",
-#            "IDEA_STK_NSE",
-#            "UBL_STK_NSE",
-#            "UPL_STK_NSE",
-#            "ULTRACEMC_STK_NSE",
-#            "OFSS_STK_NSE",
-#            "VOLTAS_STK_NSE",
-#            "DIVISLAB_STK_NSE",
-#            "JINDALSTE_STK_NSE",
-#            "ESCORTS_STK_NSE",
-#            "COFORGE_STK_NSE",
-#            "NMDC_STK_NSE",
-#            "RECLTD_STK_NSE",
-#            "CUMMINSIN_STK_NSE",
-#            "CANBK_STK_NSE",
-#            "EXIDEIND_STK_NSE",
-#            "COLPAL_STK_NSE",
-#            "CUB_STK_NSE",
-#            "INDHOTEL_STK_NSE",
-#            "INDUSINDB_STK_NSE",
-#            "NAUKRI_STK_NSE",
-#            "IOC_STK_NSE",
-#            "GODREJCP_STK_NSE",
-#            "GLENMARK_STK_NSE",
-#            "PAGEIND_STK_NSE",
-#            "PFIZER_STK_NSE",
-#            "PIDILITIN_STK_NSE",
-#            "ADANIENT_STK_NSE",
-#            "TVSMOTOR_STK_NSE",
-#            "TORNTPOWE_STK_NSE",
-#            "TORNTPHAR_STK_NSE",
-#            "TATACHEM_STK_NSE",
-#            "PEL_STK_NSE",
-#            "PETRONET_STK_NSE",
-#            "PFC_STK_NSE",
-#            "PVR_STK_NSE",
-#            "MFSL_STK_NSE",
-#            "RAMCOCEM_STK_NSE",
-#            "MPHASIS_STK_NSE",
-#            "MARICO_STK_NSE",
-#            "MRF_STK_NSE",
-#            "MOTHERSUM_STK_NSE",
-#            "MINDTREE_STK_NSE",
-#            "BHARATFOR_STK_NSE",
-#            "BIOCON_STK_NSE",
-#            "BAJAJ-AUT_STK_NSE",
-#            "BAJAJFINS_STK_NSE",
-#            "BOSCHLTD_STK_NSE",
-#            "ASHOKLEY_STK_NSE",
-#            "APOLLOTYR_STK_NSE",
-#            "AARTIIND_STK_NSE",
-#            "VEDL_STK_NSE",
-#            "SRTRANSFI_STK_NSE",
-#            "SHREECEM_STK_NSE",
-#            "SRF_STK_NSE",
-#            "STAR_STK_NSE",
-#            "SUNTV_STK_NSE",
-#            "NESTLEIND_STK_NSE",
-#            "BHARTIART_STK_NSE",
-#            "GMRINFRA_STK_NSE",
-#            "JUBLFOOD_STK_NSE",
-#            "IPCALAB_STK_NSE",
-#            "MM_STK_NSE",
-#            "MANAPPURA_STK_NSE",
-#            "TATACONSU_STK_NSE",
-#            "HDFC_STK_NSE",
-#            "LUPIN_STK_NSE",
-#            "APOLLOHOS_STK_NSE",
-#            "KOTAKBANK_STK_NSE",
-#            "ADANIPORT_STK_NSE",
-#            "COALINDIA_STK_NSE",
-#            "SUNPHARMA_STK_NSE",
-#            "BALKRISIN_STK_NSE",
-#            "COROMANDE_STK_NSE",
-#            "LICHSGFIN_STK_NSE",
-#            "ONGC_STK_NSE",
-#            "AUROPHARM_STK_NSE",
-#            "NATIONALU_STK_NSE",
-#            "MUTHOOTFI_STK_NSE",
-#            "TITAN_STK_NSE",
-#            "LTFH_STK_NSE",
-#            "TATAMOTOR_STK_NSE",
-#            "APLLTD_STK_NSE",
-#            "TATAPOWER_STK_NSE",
-#            "BHEL_STK_NSE",
-#            "MCX_STK_NSE",
-#            "AMARAJABA_STK_NSE",
-#            "INDUSTOWE_STK_NSE",
-#            "MMFIN_STK_NSE",
-#            "IBULHSGFI_STK_NSE",
-#            "PIIND_STK_NSE",
-#            "ABFRL_STK_NSE",
-#            "ASIANPAIN_STK_NSE",
-#            "FEDERALBN_STK_NSE",
-#            "GODREJPRO_STK_NSE",
-#            "DEEPAKNTR_STK_NSE",
-#            "AXISBANK_STK_NSE",
-#            "HAVELLS_STK_NSE",
-#            "ASTRAL_STK_NSE",
-#            "SBIN_STK_NSE",
-#            "ICICIBANK_STK_NSE",
-#            "PNB_STK_NSE",
-#            "BERGEPAIN_STK_NSE",
-#            "BANKBAROD_STK_NSE",
-#            "GRANULES_STK_NSE",
-#            "TECHM_STK_NSE",
-#            "SYNGENE_STK_NSE",
-#            "CADILAHC_STK_NSE",
-#            "BATAINDIA_STK_NSE",
-#            "IDFCFIRST_STK_NSE",
-#            "INDIGO_STK_NSE",
-#            "ALKEM_STK_NSE",
-#            "LALPATHLA_STK_NSE",
-#            "MGL_STK_NSE",
-#            "LTI_STK_NSE",
-#            "RBLBANK_STK_NSE",
-#            "BAJFINANC_STK_NSE",
-#            "TRENT_STK_NSE",
-#            "LTTS_STK_NSE",
-#            "ICICIPRUL_STK_NSE",
-#            "GRASIM_STK_NSE",
-#            "JSWSTEEL_STK_NSE",
-#            "BEL_STK_NSE",
-#            "AUBANK_STK_NSE",
-#            "NAVINFLUO_STK_NSE",
-#            "ICICIGI_STK_NSE",
-#            "SBILIFE_STK_NSE",
-#            "CANFINHOM_STK_NSE",
-#            "IGL_STK_NSE",
-#            "NAM-INDIA_STK_NSE",
-#            "HDFCLIFE_STK_NSE",
-#            "BANDHANBN_STK_NSE",
-#            "HAL_STK_NSE",
-#            "MCDOWELL-_STK_NSE",
-#            "CONCOR_STK_NSE",
-#            "HDFCAMC_STK_NSE",
-#            "IEX_STK_NSE",
-#            "BRITANNIA_STK_NSE",
-#            "GUJGASLTD_STK_NSE",
-#            "METROPOLI_STK_NSE",
-#            "POLYCAB_STK_NSE",
-#            "CHOLAFIN_STK_NSE",
-#            "INDIAMART_STK_NSE",
-#            "HDFCBANK_STK_NSE",
-#            "IRCTC_STK_NSE",
-#            "EICHERMOT_STK_NSE",
-#            "DIXON_STK_NSE"]
-valid = ['NIFTY50_IND_NSE',
-         'BANKNIFTY_IND_NSE',
-         'RELIANCE_STK_NSE',
-         'TCS_STK_NSE',
-         'INFY_STK_NSE',
-         'WIPRO_STK_NSE',
-         'ITC_STK_NSE',
-         'SAIL_STK_NSE',
-         'LT_STK_NSE',
-         'HINDUNILV_STK_NSE',
-         'TATASTEEL_STK_NSE',
-         'GAIL_STK_NSE',
-         'HCLTECH_STK_NSE',
-         'SIEMENS_STK_NSE',
-         'MARUTI_STK_NSE',
-         'HINDALCO_STK_NSE',
-         'AMBUJACEM_STK_NSE',
-         'CIPLA_STK_NSE',
-         'ACC_STK_NSE',
-         'HEROMOTOC_STK_NSE',
-         'BPCL_STK_NSE',
-         'ZEEL_STK_NSE',
-         'DRREDDY_STK_NSE',
-         'HINDPETRO_STK_NSE',
-         'DABUR_STK_NSE',
-         'DLF_STK_NSE',
-         'NTPC_STK_NSE',
-         'POWERGRID_STK_NSE',
-         'IDEA_STK_NSE',
-         'UBL_STK_NSE',
-         'UPL_STK_NSE',
-         'ULTRACEMC_STK_NSE',
-         'OFSS_STK_NSE',
-         'VOLTAS_STK_NSE',
-         'DIVISLAB_STK_NSE',
-         'JINDALSTE_STK_NSE',
-         'ESCORTS_STK_NSE',
-         'COFORGE_STK_NSE',
-         'NMDC_STK_NSE',
-         'RECLTD_STK_NSE',
-         'CUMMINSIN_STK_NSE',
-         'CANBK_STK_NSE',
-         'EXIDEIND_STK_NSE',
-         'COLPAL_STK_NSE',
-         'CUB_STK_NSE',
-         'INDHOTEL_STK_NSE',
-         'INDUSINDB_STK_NSE',
-         'NAUKRI_STK_NSE',
-         'IOC_STK_NSE',
-         'GODREJCP_STK_NSE',
-         'GLENMARK_STK_NSE',
-         'PAGEIND_STK_NSE',
-         'PFIZER_STK_NSE',
-         'PIDILITIN_STK_NSE',
-         'ADANIENT_STK_NSE',
-         'TVSMOTOR_STK_NSE',
-         'TORNTPOWE_STK_NSE',
-         'TORNTPHAR_STK_NSE',
-         'TATACHEM_STK_NSE',
-         'PEL_STK_NSE',
-         'PETRONET_STK_NSE',
-         'PFC_STK_NSE',
-         'PVR_STK_NSE',
-         'MFSL_STK_NSE',
-         'RAMCOCEM_STK_NSE',
-         'MPHASIS_STK_NSE',
-         'MARICO_STK_NSE',
-         'MRF_STK_NSE',
-         'MOTHERSUM_STK_NSE',
-         'MINDTREE_STK_NSE',
-         'BHARATFOR_STK_NSE',
-         'BIOCON_STK_NSE',
-         'BAJAJ-AUT_STK_NSE',
-         'BAJAJFINS_STK_NSE',
-         'BOSCHLTD_STK_NSE',
-         'ASHOKLEY_STK_NSE',
-         'APOLLOTYR_STK_NSE',
-         'AARTIIND_STK_NSE',
-         'VEDL_STK_NSE',
-         'SRTRANSFI_STK_NSE',
-         'SHREECEM_STK_NSE',
-         'SRF_STK_NSE',
-         'STAR_STK_NSE',
-         'SUNTV_STK_NSE',
-         'NESTLEIND_STK_NSE',
-         'BHARTIART_STK_NSE',
-         'GMRINFRA_STK_NSE',
-         'JUBLFOOD_STK_NSE',
-         'IPCALAB_STK_NSE',
-         'MM_STK_NSE',
-         'MANAPPURA_STK_NSE',
-         'TATACONSU_STK_NSE',
-         'HDFC_STK_NSE',
-         'APOLLOHOS_STK_NSE',
-         'KOTAKBANK_STK_NSE',
-         'ADANIPORT_STK_NSE',
-         'COALINDIA_STK_NSE',
-         'SUNPHARMA_STK_NSE',
-         'BALKRISIN_STK_NSE',
-         'COROMANDE_STK_NSE',
-         'LICHSGFIN_STK_NSE',
-         'ONGC_STK_NSE',
-         'AUROPHARM_STK_NSE',
-         'NATIONALU_STK_NSE',
-         'MUTHOOTFI_STK_NSE',
-         'TITAN_STK_NSE',
-         'LTFH_STK_NSE',
-         'TATAMOTOR_STK_NSE',
-         'APLLTD_STK_NSE',
-         'TATAPOWER_STK_NSE',
-         'BHEL_STK_NSE',
-         'MCX_STK_NSE',
-         'AMARAJABA_STK_NSE',
-         'MMFIN_STK_NSE',
-         'PIIND_STK_NSE',
-         'ASIANPAIN_STK_NSE',
-         'FEDERALBN_STK_NSE',
-         'GODREJPRO_STK_NSE',
-         'DEEPAKNTR_STK_NSE',
-         'AXISBANK_STK_NSE',
-         'HAVELLS_STK_NSE',
-         'ASTRAL_STK_NSE',
-         'SBIN_STK_NSE',
-         'ICICIBANK_STK_NSE',
-         'PNB_STK_NSE',
-         'BERGEPAIN_STK_NSE',
-         'BANKBAROD_STK_NSE',
-         'GRANULES_STK_NSE',
-         'TECHM_STK_NSE',
-         'BATAINDIA_STK_NSE',
-         'BAJFINANC_STK_NSE',
-         'TRENT_STK_NSE',
-         'GRASIM_STK_NSE',
-         'JSWSTEEL_STK_NSE',
-         'BEL_STK_NSE',
-         'NAVINFLUO_STK_NSE',
-         'CANFINHOM_STK_NSE',
-         'IGL_STK_NSE',
-         'MCDOWELL-_STK_NSE',
-         'CONCOR_STK_NSE',
-         'BRITANNIA_STK_NSE',
-         'CHOLAFIN_STK_NSE',
-         'HDFCBANK_STK_NSE',
-         'EICHERMOT_STK_NSE'
-         ]
-invalid = [
-    "LUPIN_STK_NSE",
-    "INDUSTOWE_STK_NSE",
-    "IBULHSGFI_STK_NSE",
-    "ABFRL_STK_NSE",
-    "ICICIPRUL_STK_NSE",
-    "LTTS_STK_NSE",
-    "RBLBANK_STK_NSE",
-    "LTI_STK_NSE",
-    "MGL_STK_NSE",
-    "LALPATHLA_STK_NSE",
-    "ALKEM_STK_NSE",
-    "INDIGO_STK_NSE",
-    "IDFCFIRST_STK_NSE",
-    "CADILAHC_STK_NSE",
-    "SYNGENE_STK_NSE",
-    "AUBANK_STK_NSE",
-    "ICICIGI_STK_NSE",
-    "SBILIFE_STK_NSE",
-    "NAM-INDIA_STK_NSE",
-    "HDFCLIFE_STK_NSE",
-    "BANDHANBN_STK_NSE",
-    "HAL_STK_NSE",
-    "HDFCAMC_STK_NSE",
-    "IEX_STK_NSE",
-    "GUJGASLTD_STK_NSE",
-    "METROPOLI_STK_NSE",
-    "POLYCAB_STK_NSE",
-    "INDIAMART_STK_NSE",
-    "IRCTC_STK_NSE",
-    "DIXON_STK_NSE",
-]
+with open("dsicache/day/tickers.obj", "rb") as file:
+    tickers: pd.DataFrame = pickle.load(file)
+
 filename = "dsicache/day/dsi.obj"
 g = GoogleSprint()
 wb = g.gs.open("Demand Supply Daily")
@@ -384,7 +36,7 @@ ws = wb.worksheet("Zones1")
 finaldf = None
 
 
-class TestSt2(bt.Strategy):
+class DailyUpdate(bt.Strategy):
 
     def __init__(self):
         self.resource = AutoOrderedDict()
@@ -527,20 +179,23 @@ class TestSt2(bt.Strategy):
         self.serialize()
 
 
-tickers = valid
+olderthan500days = tickers[tickers.date < daysago500]
+newerthan500days = tickers[tickers.date >= daysago500]
 
-while tickers:
-    t = tickers[:50]
-    tickers = tickers[50:]
-    print(t)
+while len(olderthan500days):
+
+    subset50 = olderthan500days[:50]
+    olderthan500days = olderthan500days[50:]
+    print(subset50)
+
     cerebro = bt.Cerebro(runonce=False)
-    cerebro.addstrategy(TestSt2)
-    cerebro.addcalendar("BSE")
+    cerebro.addstrategy(DailyUpdate)
+    cerebro.addcalendar("NSE")
     store = bt.stores.IBStore(port=7497, _debug=False)
-    cerebro.setbroker(store.getbroker())
 
-    for ticker in t:
-        data0 = store.getdata(dataname=ticker, fromdate=fromdate,
+    for element in subset50.iterrows():
+        ticker = element[1]
+        data0 = store.getdata(dataname=ticker.btsymbol, fromdate=daysago500,
                               sessionstart=sessionstart,
                               sessionend=sessionend,
                               historical=True, timeframe=bt.TimeFrame.Days)
@@ -553,9 +208,40 @@ while tickers:
     try:
         thestrats = cerebro.run(stdstats=False)
     except Exception as e:
-        print(t[0])
+        print(subset50)
         print(traceback.format_exc())
-        raven.send_all_clients(t[0])
+        raven.send_all_clients(list(subset50.symbol))
+        raven.send_all_clients(traceback.format_exc())
+
+while len(newerthan500days):
+
+    subset1 = newerthan500days[:1]
+    newerthan500days = newerthan500days[1:]
+    print(subset1)
+
+    cerebro = bt.Cerebro(runonce=False)
+    cerebro.addstrategy(DailyUpdate)
+    cerebro.addcalendar("NSE")
+    store = bt.stores.IBStore(port=7497, _debug=False)
+
+    for element in subset1.iterrows():
+        ticker = element[1]
+        data0 = store.getdata(dataname=ticker.btsymbol, fromdate=ticker.date,
+                              sessionstart=sessionstart,
+                              sessionend=sessionend,
+                              historical=True, timeframe=bt.TimeFrame.Days)
+
+        cerebro.adddata(data0)
+
+        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Weeks)
+
+        cerebro.resampledata(data0, timeframe=bt.TimeFrame.Months)
+    try:
+        thestrats = cerebro.run(stdstats=False)
+    except Exception as e:
+        print(subset1)
+        print(traceback.format_exc())
+        raven.send_all_clients(list(subset1.symbol))
         raven.send_all_clients(traceback.format_exc())
 
 loadobjects()
