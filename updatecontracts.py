@@ -12,7 +12,7 @@ from mydatabase.database import *
 
 # Address
 HOST = ""
-PORT = 7496
+PORT = 7497
 
 # Resources
 NSELOTSIZECSV = "https://archives.nseindia.com/content/fo/fo_mktlots.csv"
@@ -162,18 +162,11 @@ def updatecontracts():
 
 def deleteexpiredcontracts():
     global db
-    deleted = 0
     session = db.scoped_session()
-    allcontracts = session.query(Contract).filter(or_(Contract.sectype == SecType.FUT,
-                                                      Contract.sectype == SecType.OPT)).all()
-    for contract in allcontracts:
-        if contract.expiry.date() < datetime.now().date():
-            try:
-                session.delete(contract)
-                session.commit()
-                deleted += 1
-            except IntegrityError as ae:
-                session.rollback()
+    deleted = session.query(Contract).filter(
+        and_(Contract.expiry < datetime.now(), or_(Contract.sectype == SecType.FUT,
+                                                   Contract.sectype == SecType.OPT))).delete()
+    session.commit()
     session.close()
     return deleted
 
