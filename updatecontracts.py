@@ -39,6 +39,9 @@ def getlotsizefromnse():
     for lc in lotsize.columns:
         lotsize[lc] = lotsize[lc].apply(str.strip)
 
+    lotsize = lotsize.drop(columns=lotsize.columns[3:]).drop(columns=lotsize.columns[0])
+    lotsize.columns = ["symbol", 'lotsize']
+
     return lotsize
 
 
@@ -46,17 +49,16 @@ getlotsizefromnse()
 
 
 def getlotsize(contract_dict):
-    symbol = contract_dict['underlying']
     expiry = contract_dict['expiry']
     if expiry is None:
         return 1
-    expiry = pd.to_datetime(expiry)
-    strexpiry = expiry.strftime("%b-%y").upper()
 
-    try:
-        return int(lotsize.query(f"SYMBOL=='{symbol}'")[strexpiry].values[0])
-    except:
-        return 1
+    symbol = contract_dict['underlying']
+
+    symbol = "NIFTY" if symbol == "NIFTY50" else symbol
+
+    size = int(lotsize.query(f"symbol=='{symbol}'")["lotsize"].values[0])
+    return size
 
 
 def createbtsymbol(contract_dict):
@@ -97,6 +99,8 @@ def addcontract(symbol):
         if cds is None:
             continue
         cds = [con.contractDetails.m_summary for con in cds]
+        today = datetime.now().date().strftime("%Y%m%d")
+        cds = [c for c in cds if c.m_expiry is None or c.m_expiry >= today]
         session = db.scoped_session()
         existingcontracts = session.query(Contract).filter(
             and_(Contract.underlying == symbol, Contract.sectype == sectype)).all()
@@ -142,7 +146,7 @@ def updatecontracts():
         store.dontreconnect = False
     store.start()
     getlotsizefromnse()
-    all_tickers: list = lotsize[(lotsize.SYMBOL != 'Symbol')].SYMBOL.to_list()
+    all_tickers: list = lotsize[(lotsize.symbol != 'Symbol')].symbol.to_list()
     all_tickers.remove("MIDCPNIFTY")
     all_tickers.remove("FINNIFTY")
     if "NIFTY" in all_tickers:

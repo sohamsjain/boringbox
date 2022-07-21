@@ -15,7 +15,7 @@ from indicators.supertrend import SuperTrend
 from models import *
 from mygoogle.sprint import GoogleSprint
 from mylogger.logger import ExecutionReport
-from mytelegram.raven import Raven
+from mytelegram.spark import Spark
 from tradingschedule import nextclosingtime, lastclosingtime
 
 exRep = ExecutionReport(__file__.split("/")[-1].split(".")[0])
@@ -30,7 +30,7 @@ class Db:
         self.password = "Soham19jain98"
         self.host = "52.70.61.124"
         self.port = "3306"
-        self.database = "cerebelle2"
+        self.database = "cerebelle"
         self.engine = create_engine(
             f"{self.dialect}+{self.driver}://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}",
             echo=False, pool_size=10, max_overflow=20)
@@ -221,7 +221,7 @@ class MyStrategy(bt.Strategy):
 
         self.openordercount = 0
 
-        self.raven: Raven = Raven()
+        self.raven: Spark = Spark()
         self.ravenq: Optional[Queue] = None
         self.raventhread = Thread(target=self.sendaraven, name="raven", daemon=True)
         self.raventhread.start()
@@ -922,7 +922,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=True)
+store = bt.stores.IBStore(port=7497, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")

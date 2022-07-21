@@ -30,7 +30,7 @@ class Db:
         self.password = "Soham19jain98"
         self.host = "52.70.61.124"
         self.port = "3306"
-        self.database = "cerebelle2"
+        self.database = "cerebelle"
         self.engine = create_engine(
             f"{self.dialect}+{self.driver}://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}",
             echo=False, pool_size=10, max_overflow=20)
