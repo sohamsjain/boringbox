@@ -47,6 +47,8 @@ class Demand:
         self.timeatbase = None
         self.testopen = False
         self.testcount = 0
+        self.testperc = 0
+        self.testlow = float("inf")
         self.dzone: Optional[DZone] = None
         self.postbreakoutjourney = None
         self.prebreakoutjourney = None
@@ -100,6 +102,8 @@ class Supply:
         self.timeatbase = None
         self.testopen = False
         self.testcount = 0
+        self.testperc = 0
+        self.testhigh = 0
         self.szone: Optional[SZone] = None
         self.postbreakoutjourney = None
         self.prebreakoutjourney = None
@@ -152,11 +156,13 @@ class DZone:
         self.mergers = 0
         self.testopen = False
         self.testcount = 0
+        self.testperc = 0
         self.trend = 0
         self.location = 0
         self.score = 0
         self.relocate_curve()
         self.set_trend()
+        self.atrwidth = self.calculate_atrwidth()
         self.valid = False
         self.demands: List[Demand] = list()
         self.demands.insert(0, demand)
@@ -231,9 +237,10 @@ class DZone:
         self.timeatbase = timeatbase
         self.calculate_score()
 
-    def set_test(self, count, _open):
+    def set_test(self, count, _open, perc):
         self.testcount = count
         self.testopen = _open
+        self.testperc = perc
         self.calculate_score()
 
     def set_trend(self):
@@ -307,6 +314,10 @@ class DZone:
 
         self.demands[0].set_dzone(self)
 
+    def calculate_atrwidth(self):
+        self.atrwidth = round(self.risk / self.dsi.atr[0])
+        return self.atrwidth
+
 
 class SZone:
     def __init__(self, supply: Supply, dsi: DSIndicator, created_at):
@@ -329,11 +340,13 @@ class SZone:
         self.mergers = 0
         self.testopen = False
         self.testcount = 0
+        self.testperc = 0
         self.trend = 0
         self.location = 0
         self.score = 0
         self.relocate_curve()
         self.set_trend()
+        self.atrwidth = self.calculate_atrwidth()
         self.valid = False
         self.supplies: List[Supply] = list()
         self.supplies.insert(0, supply)
@@ -408,9 +421,10 @@ class SZone:
         self.timeatbase = timeatbase
         self.calculate_score()
 
-    def set_test(self, count, _open):
+    def set_test(self, count, _open, perc):
         self.testcount = count
         self.testopen = _open
+        self.testperc = perc
         self.calculate_score()
 
     def set_trend(self):
@@ -484,6 +498,10 @@ class SZone:
 
         self.supplies[0].set_szone(self)
 
+    def calculate_atrwidth(self):
+        self.atrwidth = round(self.risk / self.dsi.atr[0])
+        return self.atrwidth
+
 
 class DSIndicator(Indicator):
     lines = ('supply', 'demand')
@@ -555,6 +573,10 @@ class DSIndicator(Indicator):
         elif self.pivots.new_spl:
             self.pivots.new_spl = False
             self.onsplcreated()
+
+        for each in [self.demandzones, self.supplyzones]:
+            for item in each:
+                item.calculate_atrwidth()
 
         if self.p.savedstate and self.p.savedstate["lasttimestamp"] == self.lasttimestamp:
             self.rebase(self.p.savedstate)
@@ -728,17 +750,15 @@ class DSIndicator(Indicator):
             boringbodylows = list()
             boringlows = list()
             boringdts = list()
-            timeatbase = 0
+            timeatbase = 1
 
             if self.boring.isboring[latest_supply.index]:
 
-                i = latest_supply.index
+                i = latest_supply.index - 1
                 stop_index = demand.index
 
                 while i >= stop_index:
-                    if not self.boring.isboring[i]:
-                        if i == latest_supply.index:  # increment timeatbasae for non-boring sl candle
-                            timeatbase += 1
+                    if not self.boring.isbackwardboring[i]:
                         break
                     bodylow = self.boring.bodylow[i]
                     boringbodylows.append(bodylow)
@@ -850,17 +870,15 @@ class DSIndicator(Indicator):
             boringbodyhighs = list()
             boringhighs = list()
             boringdts = list()
-            timeatbase = 0
+            timeatbase = 1
 
             if self.boring.isboring[latest_demand.index]:
 
-                i = latest_demand.index
+                i = latest_demand.index - 1
                 stop_index = supply.index
 
                 while i >= stop_index:
-                    if not self.boring.isboring[i]:  # increment timeatbasae for non-boring sl candle
-                        if i == latest_demand.index:
-                            timeatbase += 1
+                    if not self.boring.isbackwardboring[i]:
                         break
                     bodyhigh = self.boring.bodyhigh[i]
                     boringbodyhighs.append(bodyhigh)
@@ -974,8 +992,15 @@ class DSIndicator(Indicator):
                         supply.testcount += 1
                         notify = True
 
+                if high > supply.influence and high > supply.testhigh:
+                    supply.testhigh = high
+                    penetration = abs(high - supply.influence)
+                    width = abs(supply.sl - supply.influence)
+                    supply.testperc = round(penetration / width * 100, 2)
+                    notify = True
+
                 if i == 1 and notify:
-                    szone.set_test(supply.testcount, supply.testopen)
+                    szone.set_test(supply.testcount, supply.testopen, supply.testperc)
 
         if len(self.demandzones):
             dzone = self.demandzones[0]
@@ -1006,8 +1031,15 @@ class DSIndicator(Indicator):
                         demand.testcount += 1
                         notify = True
 
+                if low < demand.influence and low < demand.testlow:
+                    demand.testlow = low
+                    penetration = abs(demand.influence - low)
+                    width = abs(demand.influence - demand.sl)
+                    demand.testperc = round(penetration / width * 100, 2)
+                    notify = True
+
                 if i == 1 and notify:
-                    dzone.set_test(demand.testcount, demand.testopen)
+                    dzone.set_test(demand.testcount, demand.testopen, demand.testperc)
 
     def trendcallback(self):
         for dzone in self.demandzones:

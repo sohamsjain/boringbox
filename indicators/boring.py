@@ -33,7 +33,7 @@ class BarType(Indicator):
 
 
 class Boring(Indicator):
-    lines = ("boring", "isboring", "bodyhigh", "bodylow")
+    lines = ("boring", "isboring", "isbackwardboring", "bodyhigh", "bodylow")
     params = ()
     plotinfo = dict(subplot=False)
     plotlines = dict(
@@ -51,12 +51,6 @@ class Boring(Indicator):
 
         self.prevlen = _len
 
-        barbody = round(self.data0.close[0] - self.data0.open[0], 2)
-        barrange = round(self.data0.high[0] - self.data0.low[0], 2)
-        if barrange == 0:
-            barrange = 1
-        density = abs(barbody) / barrange
-
         if self.data0.close[0] > self.data0.open[0]:
             self.lines.bodyhigh[0] = self.data0.close[0]
             self.lines.bodylow[0] = self.data0.open[0]
@@ -66,8 +60,49 @@ class Boring(Indicator):
         else:
             self.lines.bodyhigh[0] = self.lines.bodylow[0] = self.data0.open[0]
 
+        barbody = round(
+            max(
+                abs(self.data0.close[0] - self.data0.open[0]),  # Body
+                abs(self.data0.close[0] - self.data0.close[-1])  # Change
+            ), 2)
+
+        barrange = round(
+            max(
+                abs(self.data0.high[0] - self.data0.low[0]),  # Range
+                abs(self.data0.close[-1] - self.data0.high[0]),  # True Range
+                abs(self.data0.close[-1] - self.data0.low[0])  # True Range
+            ), 2)
+
+        if barrange == 0:
+            barrange = 1
+
+        density = abs(barbody) / barrange
+
         if density <= 0.5:
             self.lines.isboring[0] = 1
             self.lines.boring[0] = self.data0.low[0]
         else:
             self.lines.isboring[0] = 0
+
+        barbody = round(
+            max(
+                abs(self.data0.close[-1] - self.data0.open[-1]),  # Body
+                abs(self.data0.open[0] - self.data0.open[-1])  # Change
+            ), 2)
+
+        barrange = round(
+            max(
+                abs(self.data0.high[-1] - self.data0.low[-1]),  # Range
+                abs(self.data0.open[0] - self.data0.high[-1]),  # True Range
+                abs(self.data0.open[0] - self.data0.low[-1])  # True Range
+            ), 2)
+
+        if barrange == 0:
+            barrange = 1
+
+        density = abs(barbody) / barrange
+
+        if density <= 0.5:
+            self.lines.isbackwardboring[-1] = 1
+        else:
+            self.lines.isbackwardboring[-1] = 0
