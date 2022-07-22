@@ -558,12 +558,12 @@ class DSIndicator(Indicator):
         phigh = self.datas[self.dsidatano].high[-1]
         plow = self.datas[self.dsidatano].low[-1]
 
+        self.checktests(open_, high, low, close)
+
         if high > phigh:
             self.higherhigh(high)
         if low < plow:
             self.lowerlow(low)
-
-        self.checktests(open_, high, low, close)
 
         if self.pivots.new_sph:
             self.pivots.new_sph = False
