@@ -73,7 +73,7 @@ class Demand:
         self.dzone = dzone
         self.dzone.set_strength(self.potency)
         self.dzone.set_timeatbase(self.timeatbase)
-        self.dzone.set_test(self.testcount, self.testopen)
+        self.dzone.set_test(self.testcount, self.testopen, self.testperc)
 
     def reindex(self):
         self.index -= 1
@@ -128,8 +128,7 @@ class Supply:
         self.szone = szone
         self.szone.set_strength(self.potency)
         self.szone.set_timeatbase(self.timeatbase)
-        self.szone.testcount = self.testcount
-        self.szone.testopen = self.testopen
+        self.szone.set_test(self.testcount, self.testopen, self.testperc)
 
     def reindex(self):
         self.index -= 1
