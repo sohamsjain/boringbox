@@ -3,7 +3,7 @@ from datetime import time
 import backtrader as bt
 
 from dsicache.allobjects import *
-from mytelegram.raven import Raven
+from mytelegram.skyler import Skyler
 from tradingschedule import lastclosingtime
 
 fromdate = lastclosingtime.date()
@@ -51,7 +51,7 @@ for index in indexes:
 
 cerebro.run()
 
-raven = Raven()
+skyler = Skyler()
 
 for ticker, close in lastclose_dict.items():
     s15 = dsi15x[ticker]
@@ -101,6 +101,6 @@ for ticker, close in lastclose_dict.items():
         score = str(dz.score)
         message += f"+{entry} SL {sl} ® {ratio} Ω {score}\n"
 
-    raven.send_all_clients(message)
+    skyler.send_all_clients(message)
 
-raven.stop()
+skyler.stop()
