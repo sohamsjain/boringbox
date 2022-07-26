@@ -181,36 +181,6 @@ class TasteStretejy(bt.Strategy):
             nonce += 3
 
     def next(self):
-        # if str(self.data0.datetime.datetime(0)) == "2022-02-04 15:15:00":
-        #     print()
-
-        # for dname, v in self.r.items():
-        #     ds: DSIndicator2 = v.ds
-        #     data1 = v.datas["Minutes"]["1"]
-        #     atr = ds.atr[0]
-        #     for dz in ds.demandzones:
-        #         if not dz.score >= 7:
-        #             continue
-        #         try:
-        #             _ = dz.notified
-        #         except AttributeError:
-        #             influence = dz.entry + atr
-        #             if dz.entry < data1.low[0] < influence:
-        #                 dz.notified = True
-        #                 notif = f"{dname}:\t {data1.close[0]}\n{'+'} {dz.entry}  SL {dz.sl}  T {dz.target}"
-        #                 self.raven.send_all_clients(notif)
-        #
-        #     for sz in ds.supplyzones:
-        #         if not sz.score >= 7:
-        #             continue
-        #         try:
-        #             _ = sz.notified
-        #         except AttributeError:
-        #             influence = sz.entry - atr
-        #             if sz.entry > data1.high[0] > influence:
-        #                 sz.notified = True
-        #                 notif = f"{dname}:\t {data1.close[0]}\n{'-'} {sz.entry}  SL {sz.sl}  T {sz.target}"
-        #                 self.raven.send_all_clients(notif)
 
         if self.data0.datetime.datetime(0) == nextclosingtime:
             self.cerebro.runstop()

@@ -8,15 +8,16 @@ from indicators.oddenhancers import *
 from util import *
 
 tindex, tdin, ttin, tdout, ttout, adin, atin, adout, atout, zsym, zstatus, zscore, ztype, \
-zentry, zorgsl, zsl, ztarget, zentryhit, zexithit, pnl, oerisk, oereward, oeratio, oetest, \
+zentry, zorgsl, zsl, ztrailingsl, ztarget, zentryhit, zexithit, pnl, oerisk, oereward, oeratio, oetest, \
 oestrength, oetab, oecurve, oetrend, csym, cexpiry, cstrike, cright, cstatus, ctype, \
-csize, cbuyprice, cbuycost, cbuycomm, csellprice, csellcost, csellcomm = range(41)
+csize, cbuyprice, cbuycost, cbuycomm, csellprice, csellcost, csellcomm = range(42)
 
 tradecols = dict(index=0, tdin=1, ttin=2, tdout=3, ttout=4, adin=5, atin=6, adout=7, atout=8, zsym=9, zstatus=10,
-                 zscore=11, ztype=12, zentry=13, zorgsl=14, zsl=15, ztarget=16, zentryhit=17, zexithit=18, pnl=19,
-                 oerisk=20, oereward=21, oeratio=22, oetest=23, oestrength=24, oetab=25, oecurve=26, oetrend=27,
-                 csym=28, cexpiry=29, cstrike=30, cright=31, cstatus=32, ctype=33, csize=34, cbuyprice=35, cbuycost=36,
-                 cbuycomm=37, csellprice=38, csellcost=39, csellcomm=40)
+                 zscore=11, ztype=12, zentry=13, zorgsl=14, zsl=15, ztrailingsl=16, ztarget=17, zentryhit=18,
+                 zexithit=19, pnl=20,
+                 oerisk=21, oereward=22, oeratio=23, oetest=24, oestrength=25, oetab=26, oecurve=27, oetrend=28,
+                 csym=29, cexpiry=30, cstrike=31, cright=32, cstatus=33, ctype=34, csize=35, cbuyprice=36, cbuycost=37,
+                 cbuycomm=38, csellprice=39, csellcost=40, csellcomm=41)
 
 lasttoken = 0
 
@@ -56,7 +57,7 @@ class Xone:
         self.entry = self.origin.entry
         self.originalstoploss = self.origin.sl
         self.stoploss = self.origin.sl  # Gets calculated inside extend_stoploss method
-        self.target = self.origin.target
+        self.trailing_stoploss = None
         self.entryhit = None
         self.exithit = None
         self.lastprice = None
@@ -78,6 +79,7 @@ class Xone:
         self.datr = self.origin.dsi.curve.atrvalue
         self.stopbuffer = round(self.datr * 0.02, 2)
         self.extend_stoploss(self.origin.sl)
+        self.target = self.calculate_target()
         self.row = None
         self.index = None
         self.statlist = [""] * 41
@@ -124,6 +126,14 @@ class Xone:
             self.stoploss += self.stopbuffer
         self.stoploss = round(self.stoploss, 2)
 
+    def calculate_target(self):
+        reward = self.origin.risk * 3
+        if self.isbullish:
+            self.target = self.entry + reward
+        else:
+            self.target = self.entry - reward
+        return self.target
+
     def init_statlist(self, row, index):
         self.row = row
         self.index = index
@@ -137,6 +147,7 @@ class Xone:
         self.statlist[zentry] = self.entry
         self.statlist[zorgsl] = self.originalstoploss
         self.statlist[zsl] = self.stoploss
+        self.statlist[ztrailingsl] = self.trailing_stoploss
         self.statlist[ztarget] = self.target
         self.statlist[zentryhit] = self.entryhit
         self.statlist[oerisk] = self.origin.risk
@@ -191,8 +202,6 @@ class Child:
         self.pnl = pnl
         self.isbuy = True if self.type == ChildType.BUY else False
         self.datagroup = None
-        self.supertrend_stoploss = False
-        self.supertrenddatalts = None
 
     def attributes(self):
         attributes = dict(symbol=self.symbol,
