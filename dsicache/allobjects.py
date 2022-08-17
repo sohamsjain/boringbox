@@ -24,12 +24,12 @@ dsi5copy_lts = None
 def loadobjects():
     global dsiDx, dsiDcopyx, dsi15x, dsi15copyx, dsi5x, dsi5copyx, dsiD_lts, dsiDcopy_lts, dsi15_lts, dsi15copy_lts, dsi5_lts, dsi5copy_lts
 
-    with open(dsiD, "rb") as file:
-        dsiDx = pickle.load(file)
-        dsiD_lts = max([v["lasttimestamp"] for k, v in dsiDx.items() if v["lasttimestamp"] is not None])
-    with open(dsiDcopy, "rb") as file:
-        dsiDcopyx = pickle.load(file)
-        dsiDcopy_lts = max([v["lasttimestamp"] for k, v in dsiDcopyx.items() if v["lasttimestamp"] is not None])
+    # with open(dsiD, "rb") as file:
+    #     dsiDx = pickle.load(file)
+    #     dsiD_lts = max([v["lasttimestamp"] for k, v in dsiDx.items() if v["lasttimestamp"] is not None])
+    # with open(dsiDcopy, "rb") as file:
+    #     dsiDcopyx = pickle.load(file)
+    #     dsiDcopy_lts = max([v["lasttimestamp"] for k, v in dsiDcopyx.items() if v["lasttimestamp"] is not None])
     with open(dsi15, "rb") as file:
         dsi15x = pickle.load(file)
         dsi15_lts = max([v["lasttimestamp"] for k, v in dsi15x.items() if v["lasttimestamp"] is not None])

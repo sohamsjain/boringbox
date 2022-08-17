@@ -82,7 +82,7 @@ class Xone:
         self.target = self.calculate_target()
         self.row = None
         self.index = None
-        self.statlist = [""] * 41
+        self.statlist = [""] * 42
 
     def attributes(self):
         attributes = dict(symbol=self.symbol,
@@ -108,11 +108,16 @@ class Xone:
         return notif
 
     def tradable(self) -> bool:
-        if self.origin.atrwidth <= 1 \
-                and self.origin.timeatbase <= 3 \
-                and self.origin.strength >= 70 \
-                and self.origin.testcount <= 1 \
-                and self.origin.testperc <= 25:
+        width = self.origin.atrwidth <= 1
+        # tab = self.origin.timeatbase <= 3
+        strength = self.origin.strength >= 70
+        # tcount = self.origin.testcount <= 1
+        # tperc = self.origin.testperc <= 25
+        # if self.isbullish:
+        #     overnight = self.origin.dsi.lasttimestamp.date() > self.origin.demands[0].dtsl.date()
+        # else:
+        #     overnight = self.origin.dsi.lasttimestamp.date() > self.origin.supplies[0].dtsl.date()
+        if width and strength:
             return True
         return False
 
@@ -129,9 +134,9 @@ class Xone:
     def calculate_target(self):
         reward = self.origin.risk * 3
         if self.isbullish:
-            self.target = self.entry + reward
+            self.target = round(self.entry + reward, 2)
         else:
-            self.target = self.entry - reward
+            self.target = round(self.entry - reward, 2)
         return self.target
 
     def init_statlist(self, row, index):
@@ -151,8 +156,8 @@ class Xone:
         self.statlist[ztarget] = self.target
         self.statlist[zentryhit] = self.entryhit
         self.statlist[oerisk] = self.origin.risk
-        self.statlist[oereward] = self.origin.reward
-        self.statlist[oeratio] = self.origin.ratio
+        self.statlist[oereward] = min(self.origin.reward, 999999999) if self.origin.reward is not None else None
+        self.statlist[oeratio] = min(self.origin.ratio, 99999999) if self.origin.ratio is not None else None
         self.statlist[oetest] = self.origin.testcount
         self.statlist[oestrength] = self.origin.strength
         self.statlist[oetab] = self.origin.timeatbase

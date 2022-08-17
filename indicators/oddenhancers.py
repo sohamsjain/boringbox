@@ -633,6 +633,7 @@ class DSIndicator(Indicator):
 
             if demerge_count:
                 szone.demerge(demerge_count)
+                self.supplyzonemodified(szone)
 
         for demand in self.demands:
             if demand.growing:
@@ -680,6 +681,7 @@ class DSIndicator(Indicator):
 
             if demerge_count:
                 dzone.demerge(demerge_count)
+                self.demandzonemodified(dzone)
 
         for supply in self.supplies:
             if supply.growing:

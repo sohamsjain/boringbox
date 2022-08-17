@@ -3,6 +3,7 @@ import sys
 from datetime import timedelta
 from threading import Thread
 from typing import Dict, Any
+from time import sleep
 
 import backtrader as bt
 import pandas as pd
@@ -12,10 +13,12 @@ from backtrader.utils.dateintern import num2date
 from sqlalchemy import create_engine, inspect
 
 from models2 import *
+from indicators.trail import TrailingStoploss
 from mygoogle.sprint import GoogleSprint
 from mylogger.logger import ExecutionReport
-from mytelegram.clarke import Clarke
+from mytelegram.raven import Raven
 from tradingschedule import nextclosingtime, lastclosingtime
+from analyzers.myanalyzers import PivotAnalyzer
 
 exRep = ExecutionReport(__file__.split("/")[-1].split(".")[0])
 
@@ -40,9 +43,6 @@ class Db:
 db = Db()
 
 cds = pd.read_sql('select * from contracts where underlying in ("NIFTY50", "BANKNIFTY")', con=db.engine)
-
-expirydates = cds[cds["expiry"].notnull()]["expiry"].drop_duplicates().sort_values().values
-nearest_expiry = expirydates[0]
 
 contractsbybtsymbol = dict()
 contractsbysymbol = dict()
@@ -128,81 +128,15 @@ def get_contract(underlying=None, sectype=None, symbol=None, btsymbol=None, expi
     return contract
 
 
-def nearest_call(underlying, expiry, price):
-    u = cds.underlying == underlying
-    e = cds.expiry == expiry
-    r = cds.right == "C"
-    fdf = cds[u & e & r]
-    strikes: list = fdf.strike.to_list()
-    strikes.sort()
-    strike = None
-
-    if price in strikes:
-        strike = price
-
-    else:
-        strikes.append(price)
-        strikes.sort()
-        priceindex = strikes.index(price)
-        strikeabove = strikes[priceindex + 1]
-        strikebelow = strikes[priceindex - 1]
-        differenceabove = strikeabove - price
-        differencebelow = price - strikebelow
-        if differenceabove > differencebelow:
-            strike = strikebelow
-        elif differencebelow >= differenceabove:
-            strike = strikeabove
-
-    if not strike:
-        return "Strike price not resolved"
-
-    fdf = fdf[fdf.strike == strike]
-    return get_contract(symbol=fdf.symbol.values[0])
-
-
-def nearest_put(underlying, expiry, price):
-    u = cds.underlying == underlying
-    e = cds.expiry == expiry
-    r = cds.right == "P"
-    fdf = cds[u & e & r]
-    strikes: list = fdf.strike.to_list()
-    strikes.sort()
-    strike = None
-
-    if price in strikes:
-        strike = price
-
-    else:
-        strikes.append(price)
-        strikes.sort()
-        priceindex = strikes.index(price)
-        strikeabove = strikes[priceindex + 1]
-        strikebelow = strikes[priceindex - 1]
-        differenceabove = strikeabove - price
-        differencebelow = price - strikebelow
-        if differenceabove >= differencebelow:
-            strike = strikebelow
-        elif differencebelow > differenceabove:
-            strike = strikeabove
-
-    if not strike:
-        return "Strike price not resolved"
-
-    fdf = fdf[fdf.strike == strike]
-    return get_contract(symbol=fdf.symbol.values[0])
-
-
 # datafeed params
-fromdate = lastclosingtime.date() - timedelta(days=3)
+fromdate = lastclosingtime.date() - timedelta(days=365*1)
+todate = lastclosingtime.date()
+# fromdate = date(day=1, month=1, year=2011)
+# todate = date(day=1, month=1, year=2012)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
-
-tradingday = AutoOrderedDict()
-tradingday.date = nextclosingtime.date()
-tradingday.sessionstart = nextclosingtime.replace(hour=9, minute=15)
-tradingday.lastorder = nextclosingtime.replace(hour=15, minute=0)
-tradingday.intraday_squareoff = nextclosingtime.replace(hour=15, minute=25)
-tradingday.sessionend = nextclosingtime
+lastorder = time(hour=15, minute=0)
+intraday_squareoff = time(hour=15, minute=25)
 
 
 class MyStrategy(bt.Strategy):
@@ -220,26 +154,25 @@ class MyStrategy(bt.Strategy):
 
         self.openordercount = 0
 
-        self.clarke: Clarke = Clarke()
+        self.clarke: Raven = Raven()
         self.clarkeq: Optional[Queue] = None
         self.clarkethread = Thread(target=self.sendaclarke, name="clarke", daemon=True)
         self.clarkethread.start()
-        self.clarkeq.put("Market Starts")
+
         self.sprint = GoogleSprint()
         self.spread = self.sprint.gs.open("Long15Live Trading Reports")
-        self.sheet = self.spread.worksheet("Trades")
+        self.sheet = self.spread.worksheet("Backtest6")
+        self.lastsheetupdate = datetime.now()
 
         self.states = self.deserialize()
         self.states_restored = datetime.max
 
-        self.intraday_squareoff_triggered = False
-
         nonce = 0
         while nonce < len(self.datas):
-            tickdata = self.datas[nonce]  # RTbar
+            tickdata = self.datas[nonce]  # Minute 1
             dsidata = self.datas[nonce + 1]  # Minute 15
             trenddata = self.datas[nonce + 2]  # Minute 75
-            curvedata = self.datas[nonce]  # RTbar proxying Day 1
+            curvedata = self.datas[nonce + 3]  # Day 1
 
             btsymbol = dsidata._dataname
             try:
@@ -252,11 +185,12 @@ class MyStrategy(bt.Strategy):
             self.xone_resource[btsymbol].trenddata = trenddata
             self.xone_resource[btsymbol].curvedata = curvedata
             self.xone_resource[btsymbol].pivots = Pivots(dsidata)
+            self.xone_resource[btsymbol].tsl = TrailingStoploss(dsidata)
             self.xone_resource[btsymbol].dsi = DSIndicator(tickdata, dsidata, trenddata, curvedata,
                                                            savedstate=savedstate,
                                                            curvebreakoutsonly=True)
 
-            nonce += 3
+            nonce += 4
 
         self.prevlen = None
 
@@ -402,9 +336,6 @@ class MyStrategy(bt.Strategy):
             if not dsi.notifications.empty():
                 self.readnotifications(dsi)
 
-        if self.datetime.datetime(0) <= self.states_restored:
-            return
-
         for xone in self.allxones:
             data = xone.datagroup.tickdata
             dtime = data.datetime.datetime(0)
@@ -503,7 +434,7 @@ class MyStrategy(bt.Strategy):
                         if xone.tradable():
                             xone.open_children = True
 
-                if xone.open_children and data.datetime.datetime(0) <= tradingday.lastorder:
+                if xone.open_children and data.datetime.time(0) <= lastorder:
                     xone.open_children = False
                     if not xone.children:
                         continue
@@ -532,7 +463,18 @@ class MyStrategy(bt.Strategy):
                         xone.trailing_stoploss = pivots.sph_value
                         xone.update_statlist(ztrailingsl=xone.trailing_stoploss)
 
-                if xone.trailing_stoploss is None: # \
+                tsl = self.xone_resource[xone.btsymbol].tsl
+                if tsl.bullish[0] and xone.isbullish:
+                    if xone.trailing_stoploss is None or tsl.bullish[0] > xone.trailing_stoploss:
+                        xone.trailing_stoploss = tsl.bullish[0]
+                        xone.update_statlist(ztrailingsl=xone.trailing_stoploss)
+
+                if tsl.bearish[0] and not xone.isbullish:
+                    if xone.trailing_stoploss is None or tsl.bearish[0] < xone.trailing_stoploss:
+                        xone.trailing_stoploss = tsl.bearish[0]
+                        xone.update_statlist(ztrailingsl=xone.trailing_stoploss)
+
+                if xone.trailing_stoploss is None:
                         # or (xone.isbullish and xone.trailing_stoploss < xone.entry) \
                         # or (not xone.isbullish and xone.trailing_stoploss > xone.entry):
 
@@ -668,32 +610,27 @@ class MyStrategy(bt.Strategy):
             if pivots.new_spl:
                 pivots.new_spl = False
 
-        if self.data0.datetime.datetime(0) >= tradingday.intraday_squareoff:
-            if not self.intraday_squareoff_triggered:
-                self.intraday_squareoff_triggered = True
-                if self.openxones:
-                    for xone in self.openxones:
-                        xone.exithit = xone.datagroup.tickdata.close[0]
-                        xone.exit_at = self.data0.datetime.datetime(0)
-                        xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
-                                             zexithit=xone.exithit)
-                        self.updatesheet(xone)
-                        if xone.isbullish:
-                            xone.nextstatus = XoneStatus.PROFIT if xone.lastprice > xone.entry else XoneStatus.LOSS
+        if self.data0.datetime.time(0) == intraday_squareoff:
+            if self.openxones:
+                for xone in self.openxones:
+                    xone.exithit = xone.datagroup.tickdata.close[0]
+                    xone.exit_at = self.data0.datetime.datetime(0)
+                    xone.update_statlist(tdout=xone.exit_at.date(), ttout=xone.exit_at.time(),
+                                         zexithit=xone.exithit)
+                    self.updatesheet(xone)
+                    if xone.isbullish:
+                        xone.nextstatus = XoneStatus.PROFIT if xone.lastprice > xone.entry else XoneStatus.LOSS
+                    else:
+                        xone.nextstatus = XoneStatus.PROFIT if xone.lastprice < xone.entry else XoneStatus.LOSS
+
+                    for child in xone.children:
+                        if child.isbuy:
+                            order = self.sell(data=child.datagroup.tickdata, size=child.filled)
                         else:
-                            xone.nextstatus = XoneStatus.PROFIT if xone.lastprice < xone.entry else XoneStatus.LOSS
-
-                        for child in xone.children:
-                            if child.isbuy:
-                                order = self.sell(data=child.datagroup.tickdata, size=child.filled)
-                            else:
-                                order = self.buy(data=child.datagroup.tickdata, size=child.filled)
-                            xone.orders.append(order)
-                            self.childrenbyorder[order.ref] = child
-                        xone.orders.append(None)
-
-        if self.data0.datetime.datetime(0) >= tradingday.sessionend:
-            self.cerebro.runstop()
+                            order = self.buy(data=child.datagroup.tickdata, size=child.filled)
+                        xone.orders.append(order)
+                        self.childrenbyorder[order.ref] = child
+                    xone.orders.append(None)
 
     def readnotifications(self, dsi: DSIndicator):
         allnotifs = list()
@@ -710,14 +647,6 @@ class MyStrategy(bt.Strategy):
         for notif in allnotifs:
 
             subject = notif.pop(0)
-
-            if subject == Notifications.SavedStateRestored:
-                self.initialize_xones(dsi)
-                self.states_restored = self.datetime.datetime(0)
-                return
-
-            if self.datetime.datetime(0) <= self.states_restored:
-                continue
 
             if subject == Notifications.DemandZoneCreated:
 
@@ -755,30 +684,6 @@ class MyStrategy(bt.Strategy):
             elif subject == Notifications.SupplyZoneBroken:
                 pass
 
-    def initialize_xones(self, dsi: DSIndicator):
-
-        atr = dsi.curve.atrvalue
-        close = dsi.data0.close[0]
-        upperband = round(close + atr * 3, 2)
-        lowerband = round(close - atr * 3, 2)
-
-        zones = []
-
-        for sz in dsi.supplyzones:
-            if sz.entry <= upperband:
-                zones.append(sz)
-            else:
-                break
-
-        for dz in dsi.demandzones:
-            if dz.entry >= lowerband:
-                zones.append(dz)
-            else:
-                break
-
-        for z in zones:
-            self.create_xone(z, notify=False)
-
     def create_xone(self, origin: Optional[DZone], notify=True):
 
         if origin in self.xonesbyorigin:
@@ -793,12 +698,7 @@ class MyStrategy(bt.Strategy):
 
         xone.datagroup = self.xone_resource[xone.btsymbol]
 
-        if xone.isbullish:
-            childcontract = nearest_call(xonecontract.underlying, nearest_expiry, xone.entry)
-        else:
-            childcontract = nearest_put(xonecontract.underlying, nearest_expiry, xone.entry)
-
-        child = Child(contract=childcontract,
+        child = Child(contract=xonecontract,
                       xone=xone,
                       status=ChildStatus.CREATED)
 
@@ -821,34 +721,8 @@ class MyStrategy(bt.Strategy):
 
         if btsymbol in self.child_resource:
             return self.child_resource[btsymbol]
-        print(btsymbol)
-        backfill = store.getdata(dataname=btsymbol, fromdate=fromdate, historical=True, timeframe=bt.TimeFrame.Minutes,
-                                 compression=1, sessionstart=sessionstart,
-                                 sessionend=sessionend)
-        backfill.addfilter(MinutesBackwardLookingFilter)
 
-        data = store.getdata(dataname=btsymbol, rtbar=True, timeframe=bt.TimeFrame.Minutes,
-                             compression=1, sessionstart=sessionstart,
-                             sessionend=sessionend, backfill_from=backfill)
-
-        data.addfilter(SecondsBackwardLookingFilter)
-        data.addfilter(SessionFilter)
-
-        tickdata = self.cerebro.adddata(data)
-
-        tickdata.reset()
-
-        if self.cerebro._exactbars < 1:
-            tickdata.extend(size=self.cerebro.params.lookahead)
-
-        tickdata._start()
-
-        if self.cerebro._dopreload:
-            tickdata.preload()
-
-        self.cerebro.runrestart()
-
-        self.child_resource[btsymbol].tickdata = tickdata
+        self.child_resource[btsymbol].tickdata = self.xone_resource[btsymbol].tickdata
 
         return self.child_resource[btsymbol]
 
@@ -864,7 +738,11 @@ class MyStrategy(bt.Strategy):
         return row, index
 
     def updatesheet(self, xone):
+        if datetime.now() - self.lastsheetupdate < timedelta(seconds=1):
+            sleep(1)
         self.sheet.update(f"A{xone.row}", [xone.statlist])
+        self.lastsheetupdate = datetime.now()
+        pass
 
     def deserialize(self):
         try:
@@ -900,40 +778,41 @@ class MinutesBackwardLookingFilter(object):
 
 
 def getdata(ticker):
-    backfill = store.getdata(dataname=ticker, fromdate=fromdate, historical=True,
-                             timeframe=bt.TimeFrame.Minutes,
-                             compression=1, sessionstart=sessionstart,
-                             sessionend=sessionend)
-    backfill.addfilter(MinutesBackwardLookingFilter)
+    data = store.getdata(dataname=ticker, fromdate=fromdate, todate=todate, sessionstart=sessionstart,
+                         historical=True, sessionend=sessionend, timeframe=bt.TimeFrame.Minutes,
+                         compression=1)
 
-    data = store.getdata(dataname=ticker, rtbar=True, timeframe=bt.TimeFrame.Minutes,
-                         compression=1, sessionstart=sessionstart,
-                         sessionend=sessionend, backfill_from=backfill)
-
-    data.addfilter(SecondsBackwardLookingFilter)
+    data.addfilter(MinutesBackwardLookingFilter)
     data.addfilter(SessionFilter)
+
     cerebro.adddata(data)
 
     cerebro.resampledata(data,
                          timeframe=bt.TimeFrame.Minutes,
-                         compression=15)
+                         compression=5)
 
     cerebro.resampledata(data,
                          timeframe=bt.TimeFrame.Minutes,
                          compression=75,
                          boundoff=45)
 
+    dailydata = store.getdata(dataname=ticker, fromdate=fromdate, todate=todate, sessionstart=sessionstart,
+                              historical=True, sessionend=sessionend, timeframe=bt.TimeFrame.Days,
+                              compression=1)
+
+    cerebro.adddata(dailydata)
 
 indexes = [
     "NIFTY50_IND_NSE",
-    "BANKNIFTY_IND_NSE",
+    # "BANKNIFTY_IND_NSE",
 ]
 
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
+cerebro.addanalyzer(PivotAnalyzer)
+cerebro.broker.set_cash(200000)
 
-store = bt.stores.IBStore(port=7497, _debug=False)
-cerebro.setbroker(store.getbroker())
+store = bt.stores.IBStore(port=7497, _debug=True)
 
 cerebro.addcalendar("BSE")
 
