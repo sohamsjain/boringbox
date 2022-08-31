@@ -187,6 +187,7 @@ class MyStrategy(bt.Strategy):
             underlying = Underlying(contract=underlyingcontract, status=Underlying.CREATED)
             underlying.data = data
             self.underlyingresource[btsymbol] = underlying
+            print("Creating Underlying Index: ", btsymbol)
 
         # self.clarke: Clarke = Clarke()
         # self.clarkeq: Optional[Queue] = None
@@ -321,6 +322,10 @@ class MyStrategy(bt.Strategy):
 
         self.prevlen = _len
 
+        self.lasttimestamp = self.datas[0].datetime.datetime(0)
+
+        print("[", datetime.now().replace(microsecond=0), "]", self.lasttimestamp, "<", self.datas[0].close[0], ">")
+
         for btsymbol, underlying in self.underlyingresource.items():
 
             try:  # In case a new datafeed is added, it may not produce a bar
@@ -334,11 +339,11 @@ class MyStrategy(bt.Strategy):
             if underlying.orders:
                 continue
 
-            self.lasttimestamp = self.datas[0].datetime.datetime(0)
-
             if underlying.status == Underlying.CREATED:
 
                 if self.lasttimestamp >= tradingday.inittime:
+
+                    print("Initialising Index: ", btsymbol)
 
                     underlying.status = Underlying.INITIALISED
 
@@ -366,6 +371,8 @@ class MyStrategy(bt.Strategy):
 
                 if self.lasttimestamp >= tradingday.entrytime:
 
+                    print("Creating Short Strangle on Index: ", btsymbol)
+
                     underlying.status = Underlying.ENTRYHIT
 
                     callchain = list()
@@ -385,6 +392,9 @@ class MyStrategy(bt.Strategy):
 
                     underlying.legs.append(selectedcechild)
 
+                    print(calldf)
+                    print("Using Strike: ", selectedcestrike)
+
                     putchain = list()
                     for childsymbol, child in underlying.pestrikes.items():
                         putchain.append(dict(
@@ -401,6 +411,9 @@ class MyStrategy(bt.Strategy):
                     selectedpechild = underlying.pestrikes[selectedpestrike]
 
                     underlying.legs.append(selectedpechild)
+
+                    print(putdf)
+                    print("Using Strike: ", selectedpestrike)
 
                     for leg in underlying.legs:
                         size = leg.contract.lotsize
@@ -420,6 +433,7 @@ class MyStrategy(bt.Strategy):
                             underlying.orders.append(order)
                             self.legsbyorder[order.ref] = leg
                             underlying.orders.append(None)
+                            print("Squaring Off: ", leg.contract.btsymbol)
                             break
 
                 else:
@@ -430,6 +444,7 @@ class MyStrategy(bt.Strategy):
                         underlying.orders.append(order)
                         self.legsbyorder[order.ref] = leg
                         underlying.orders.append(None)
+                        print("Squaring Off: ", leg.contract.btsymbol)
 
             elif underlying.status == Underlying.ABORT:
                 for leg in underlying.legs:
@@ -509,7 +524,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=False)
+store = bt.stores.IBStore(port=7496, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")
