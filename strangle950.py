@@ -266,7 +266,7 @@ class MyStrategy(bt.Strategy):
                 underlying.status = Underlying.ENTRY
                 underlying.opened_at = num2date(order.executed.dt)
 
-                for leg in underlying.children:
+                for leg in underlying.legs:
                     if leg.status in [Child.MARGIN, Child.REJECTED]:
                         underlying.status = Underlying.ABORT
                         break
@@ -424,27 +424,39 @@ class MyStrategy(bt.Strategy):
 
             elif underlying.status in Underlying.OPEN:
 
-                if underlying.status == Underlying.ENTRY:
+                if self.lasttimestamp >= tradingday.exittime:
 
                     for leg in underlying.legs:
+                        order = self.buy(data=leg.data, size=leg.filled)
+                        underlying.orders.append(order)
+                        self.legsbyorder[order.ref] = leg
+                        print("Squaring Off: ", leg.contract.btsymbol)
+                    underlying.orders.append(None)
+                    underlying.nextstatus = Underlying.CLOSING
+
+                else:
+
+                    if underlying.status == Underlying.ENTRY:
+
+                        for leg in underlying.legs:
+                            if leg.lastprice > leg.sl:
+                                underlying.nextstatus = Underlying.CALLSQUAREDOFF if leg.contract.right == "C" else Underlying.PUTSQUAREDOFF
+                                order = self.buy(data=leg.data, size=leg.filled)
+                                underlying.orders.append(order)
+                                self.legsbyorder[order.ref] = leg
+                                underlying.orders.append(None)
+                                print("Squaring Off: ", leg.contract.btsymbol)
+                                break
+
+                    else:
+                        leg = underlying.legs[0]
                         if leg.lastprice > leg.sl:
-                            underlying.nextstatus = Underlying.CALLSQUAREDOFF if leg.contract.right == "C" else Underlying.PUTSQUAREDOFF
+                            underlying.nextstatus = Underlying.CLOSING
                             order = self.buy(data=leg.data, size=leg.filled)
                             underlying.orders.append(order)
                             self.legsbyorder[order.ref] = leg
                             underlying.orders.append(None)
                             print("Squaring Off: ", leg.contract.btsymbol)
-                            break
-
-                else:
-                    leg = underlying.legs[0]
-                    if leg.lastprice > leg.sl:
-                        underlying.nextstatus = Underlying.CLOSING
-                        order = self.buy(data=leg.data, size=leg.filled)
-                        underlying.orders.append(order)
-                        self.legsbyorder[order.ref] = leg
-                        underlying.orders.append(None)
-                        print("Squaring Off: ", leg.contract.btsymbol)
 
             elif underlying.status == Underlying.ABORT:
                 for leg in underlying.legs:
