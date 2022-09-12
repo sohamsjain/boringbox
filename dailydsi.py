@@ -14,15 +14,21 @@ from mytelegram.raven import Raven
 from tradingschedule import lastclosingtime
 
 raven = Raven()
+debug = True
+cachepath = r"dsicache/day/dsi.obj"
 
-if lastclosingtime == dsiD_lts:
-    msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {dsiD_lts}"
-    print(msg)
-    raven.send_all_clients(msg)
-    raven.stop()
-    sys.exit()
+with open(cachepath, "rb") as file:
+    cache = pickle.load(file)
+    lasttimestamp = max([v["lasttimestamp"] for k, v in cache.items() if v["lasttimestamp"] is not None])
 
-daysago500 = lastclosingtime.date() - timedelta(days=440)
+    if lasttimestamp == lastclosingtime:
+        msg = f"Cache Update\n Timeframe: Days\n Compression: 1\n Updated Till: {lasttimestamp}"
+        print(msg)
+        raven.send_all_clients(msg)
+        raven.stop()
+        sys.exit()
+
+daysago500 = lastclosingtime.date() - timedelta(days=500)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 
@@ -191,7 +197,7 @@ while len(olderthan500days):
     cerebro = bt.Cerebro(runonce=False)
     cerebro.addstrategy(DailyUpdate)
     cerebro.addcalendar("NSE")
-    store = bt.stores.IBStore(port=7497, _debug=False)
+    store = bt.stores.IBStore(port=7496, _debug=debug)
 
     for element in subset50.iterrows():
         ticker = element[1]
@@ -222,7 +228,7 @@ while len(newerthan500days):
     cerebro = bt.Cerebro(runonce=False)
     cerebro.addstrategy(DailyUpdate)
     cerebro.addcalendar("NSE")
-    store = bt.stores.IBStore(port=7497, _debug=False)
+    store = bt.stores.IBStore(port=7496, _debug=debug)
 
     for element in subset1.iterrows():
         ticker = element[1]

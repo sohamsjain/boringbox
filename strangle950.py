@@ -174,6 +174,11 @@ tradingday.entrytime = nextclosingtime.replace(hour=9, minute=49, second=45)
 tradingday.exittime = nextclosingtime.replace(hour=15, minute=0)
 tradingday.sessionend = nextclosingtime
 
+paramsdict = {
+    "BANKNIFTY_IND_NSE": {"cp": 160, "sl": 30},
+    "NIFTY50_IND_NSE": {"cp": 80, "sl": 15}
+}
+
 
 class MyStrategy(bt.Strategy):
 
@@ -271,7 +276,8 @@ class MyStrategy(bt.Strategy):
                         underlying.status = Underlying.ABORT
                         break
 
-                    leg.sl = leg.selling_price + 15
+                    slpoints = paramsdict[underlying.contract.btsymbol]["sl"]
+                    leg.sl = leg.selling_price + slpoints
 
             elif underlying.status in Underlying.OPEN:
                 underlying.status = underlying.nextstatus
@@ -346,12 +352,12 @@ class MyStrategy(bt.Strategy):
                     print("Initialising Index: ", btsymbol)
 
                     underlying.status = Underlying.INITIALISED
-
+                    width = paramsdict[underlying.contract.btsymbol]["cp"]
                     lastprice = underlying.lastprice
                     celist: List[Contract] = call_list(underlying=underlying.contract.underlying, expiry=nearest_expiry,
-                                                       price=lastprice, width=80)
+                                                       price=lastprice, width=width)
                     pelist: List[Contract] = put_list(underlying=underlying.contract.underlying, expiry=nearest_expiry,
-                                                      price=lastprice, width=80)
+                                                      price=lastprice, width=width)
 
                     for callcontract in celist:
                         child = Child(contract=callcontract, underlying=underlying, status=Child.CREATED)
@@ -374,6 +380,7 @@ class MyStrategy(bt.Strategy):
                     print("Creating Short Strangle on Index: ", btsymbol)
 
                     underlying.status = Underlying.ENTRYHIT
+                    cp = paramsdict[underlying.contract.btsymbol]["cp"]
 
                     callchain = list()
                     for childsymbol, child in underlying.cestrikes.items():
@@ -382,7 +389,7 @@ class MyStrategy(bt.Strategy):
                             strike=child.contract.strike,
                             symbol=child.contract.symbol,
                             btsymbol=child.contract.btsymbol,
-                            difference=abs(child.lastprice - 80)
+                            difference=abs(child.lastprice - cp)
                         ))
 
                     calldf = pd.DataFrame(callchain)
@@ -402,7 +409,7 @@ class MyStrategy(bt.Strategy):
                             strike=child.contract.strike,
                             symbol=child.contract.symbol,
                             btsymbol=child.contract.btsymbol,
-                            difference=abs(child.lastprice - 80)
+                            difference=abs(child.lastprice - cp)
                         ))
 
                     putdf = pd.DataFrame(putchain)

@@ -254,7 +254,7 @@ while tickers:
     print(t)
     cerebro = bt.Cerebro(runonce=False)
     cerebro.addstrategy(TasteStretejy)
-    store = bt.stores.IBStore(port=7497)
+    store = bt.stores.IBStore(port=7496)
     cerebro.setbroker(store.getbroker())
     cerebro.addcalendar("NSE")
     getdata(t)

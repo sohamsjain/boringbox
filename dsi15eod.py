@@ -43,7 +43,7 @@ def getdata(t):
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(Strategy)
 
-store = bt.stores.IBStore(port=7497, _debug=True)
+store = bt.stores.IBStore(port=7496, _debug=True)
 cerebro.addcalendar("BSE")
 
 for index in indexes:

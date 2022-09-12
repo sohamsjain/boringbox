@@ -396,7 +396,8 @@ class MyStrategy(bt.Strategy):
             return
 
         self.prevlen = _len
-
+        print("[", datetime.now().replace(microsecond=0), "]", self.datas[0].datetime.datetime(0), "<",
+              self.datas[0].close[0], ">")
         for btsymbol, resource in self.xone_resource.items():
             dsi: DSIndicator = resource.dsi
             if not dsi.notifications.empty():
@@ -822,14 +823,10 @@ class MyStrategy(bt.Strategy):
         if btsymbol in self.child_resource:
             return self.child_resource[btsymbol]
         print(btsymbol)
-        backfill = store.getdata(dataname=btsymbol, fromdate=fromdate, historical=True, timeframe=bt.TimeFrame.Minutes,
-                                 compression=1, sessionstart=sessionstart,
-                                 sessionend=sessionend)
-        backfill.addfilter(MinutesBackwardLookingFilter)
 
         data = store.getdata(dataname=btsymbol, rtbar=True, timeframe=bt.TimeFrame.Minutes,
                              compression=1, sessionstart=sessionstart,
-                             sessionend=sessionend, backfill_from=backfill)
+                             sessionend=sessionend, backfill_start=False)
 
         data.addfilter(SecondsBackwardLookingFilter)
         data.addfilter(SessionFilter)
@@ -932,7 +929,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=False)
+store = bt.stores.IBStore(port=7496, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")

@@ -922,8 +922,8 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=False)
-cerebro.setbroker(store.getbroker())
+store = bt.stores.IBStore(port=7496, _debug=False)
+# cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")
 
