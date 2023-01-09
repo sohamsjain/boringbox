@@ -1,5 +1,5 @@
 import sys
-from datetime import timedelta, time
+from datetime import timedelta
 from queue import Queue
 
 import backtrader as bt
@@ -10,6 +10,7 @@ from backtrader.utils.dateintern import num2date
 from sqlalchemy import create_engine, inspect
 
 from models3 import *
+from mygoogle.sprint import GoogleSprint
 from mylogger.logger import ExecutionReport
 from tradingschedule import nextclosingtime
 
@@ -170,13 +171,13 @@ tradingday = AutoOrderedDict()
 tradingday.date = nextclosingtime.date()
 tradingday.sessionstart = nextclosingtime.replace(hour=9, minute=15)
 tradingday.inittime = nextclosingtime.replace(hour=9, minute=40)
-tradingday.entrytime = nextclosingtime.replace(hour=9, minute=49, second=45)
-tradingday.exittime = nextclosingtime.replace(hour=15, minute=0)
+tradingday.entrytime = nextclosingtime.replace(hour=15, minute=10, second=45)
+tradingday.exittime = nextclosingtime.replace(hour=15, minute=29)
 tradingday.sessionend = nextclosingtime
 
 paramsdict = {
-    "BANKNIFTY_IND_NSE": {"cp": 160, "sl": 30},
-    "NIFTY50_IND_NSE": {"cp": 80, "sl": 15}
+    "BANKNIFTY_IND_NSE": {"cp": 160, "sl": 30, "sheetname": "Banknifty"},
+    "NIFTY50_IND_NSE": {"cp": 80, "sl": 15, "sheetname": "Nifty50"}
 }
 
 
@@ -186,11 +187,15 @@ class MyStrategy(bt.Strategy):
         self.underlyingresource: Dict[str, Underlying] = AutoOrderedDict()
         self.legsbyorder: dict = dict()
 
+        self.sprint = GoogleSprint()
+        self.spread = self.sprint.gs.open("Strangle950")
+
         for data in self.datas:
             btsymbol = data._dataname
             underlyingcontract = get_contract(btsymbol=btsymbol)
             underlying = Underlying(contract=underlyingcontract, status=Underlying.CREATED)
             underlying.data = data
+            underlying.sheet = self.spread.worksheet(paramsdict[underlyingcontract.btsymbol]["sheetname"])
             self.underlyingresource[btsymbol] = underlying
             print("Creating Underlying Index: ", btsymbol)
 
@@ -211,7 +216,7 @@ class MyStrategy(bt.Strategy):
             return
 
         try:
-            leg = self.legsbyorder[order.ref]
+            leg: Child = self.legsbyorder[order.ref]
             self.legsbyorder.pop(order.ref)
         except KeyError as k:
             print(k)
@@ -221,33 +226,43 @@ class MyStrategy(bt.Strategy):
 
             if order.isbuy():
 
-                leg.buying_price = order.executed.price
                 leg.filled = abs(order.executed.size)
+                leg.buying_price = order.executed.price
                 leg.buying_cost = leg.buying_price * leg.filled
                 leg.buying_commission = round(order.executed.comm)
+                leg.update_statlist(buy_price=leg.buying_price, buy_cost=leg.buying_cost,
+                                    buy_comm=leg.buying_commission)
 
                 if leg.isbuy:
                     leg.status = Child.BOUGHT
                     leg.opened_at = num2date(order.executed.dt)
+                    leg.update_statlist(status=leg.status, time_in=leg.opened_at, size=leg.filled, _type="Buy")
                 else:
                     leg.status = Child.SQUAREDOFF
                     leg.closed_at = num2date(order.executed.dt)
                     leg.pnl = leg.selling_cost - leg.buying_cost
+                    leg.update_statlist(status=leg.status, time_out=leg.closed_at, pnl=leg.pnl)
 
             else:
 
-                leg.selling_price = order.executed.price
                 leg.filled = abs(order.executed.size)
+                leg.selling_price = order.executed.price
                 leg.selling_cost = leg.selling_price * leg.filled
                 leg.selling_commission = round(order.executed.comm)
+                leg.update_statlist(sell_price=leg.selling_price, sell_cost=leg.selling_cost,
+                                    sell_comm=leg.selling_commission)
 
                 if leg.isbuy:
                     leg.status = Child.SQUAREDOFF
                     leg.closed_at = num2date(order.executed.dt)
                     leg.pnl = leg.selling_cost - leg.buying_cost
+                    leg.update_statlist(status=leg.status, time_out=leg.closed_at, pnl=leg.pnl)
                 else:
                     leg.status = Child.SOLD
                     leg.opened_at = num2date(order.executed.dt)
+                    leg.update_statlist(status=leg.status, time_in=leg.opened_at, size=leg.filled, _type="Sell")
+
+            self.updatesheet(leg.underlying.sheet, leg)
 
         elif order.status == order.Canceled:
             leg.status = Child.CANCELLED
@@ -270,6 +285,7 @@ class MyStrategy(bt.Strategy):
 
                 underlying.status = Underlying.ENTRY
                 underlying.opened_at = num2date(order.executed.dt)
+                underlying.update_statlist(status=underlying.status, time_in=underlying.opened_at)
 
                 for leg in underlying.legs:
                     if leg.status in [Child.MARGIN, Child.REJECTED]:
@@ -281,6 +297,7 @@ class MyStrategy(bt.Strategy):
 
             elif underlying.status in Underlying.OPEN:
                 underlying.status = underlying.nextstatus
+                underlying.update_statlist(status=underlying.status)
 
                 if underlying.status == Underlying.CALLSQUAREDOFF:
                     putleg = underlying.legs[0]
@@ -292,13 +309,19 @@ class MyStrategy(bt.Strategy):
 
                 else:
                     underlying.closed_at = num2date(order.executed.dt)
-                    underlying.pnl = sum([c.pnl for c in underlying.children if c.pnl is not None])
+                    underlying.pnl = sum([c.pnl for c in underlying.closedlegs if c.pnl is not None])
                     underlying.status = Underlying.PROFIT if underlying.pnl > 0 else Underlying.LOSS
+                    underlying.update_statlist(status=underlying.status, pnl=underlying.pnl,
+                                               time_out=underlying.closed_at)
 
             elif underlying.status == Underlying.ABORT:
                 underlying.closed_at = num2date(order.executed.dt)
-                underlying.pnl = sum([c.pnl for c in underlying.children if c.pnl is not None])
+                underlying.pnl = sum([c.pnl for c in underlying.closedlegs if c.pnl is not None])
                 underlying.status = Underlying.FORCECLOSED
+                underlying.update_statlist(status=underlying.status, pnl=underlying.pnl,
+                                           time_out=underlying.closed_at)
+
+            self.updatesheet(underlying.sheet, underlying)
 
     def notify_trade(self, trade):
         pass
@@ -350,8 +373,12 @@ class MyStrategy(bt.Strategy):
                 if self.lasttimestamp >= tradingday.inittime:
 
                     print("Initialising Index: ", btsymbol)
-
                     underlying.status = Underlying.INITIALISED
+
+                    row, index = self.nextrowindex(underlying.sheet)
+                    underlying.init_statlist(row=row, idx=index)
+                    self.updatesheet(underlying.sheet, underlying)
+
                     width = paramsdict[underlying.contract.btsymbol]["cp"]
                     lastprice = underlying.lastprice
                     celist: List[Contract] = call_list(underlying=underlying.contract.underlying, expiry=nearest_expiry,
@@ -378,8 +405,10 @@ class MyStrategy(bt.Strategy):
                 if self.lasttimestamp >= tradingday.entrytime:
 
                     print("Creating Short Strangle on Index: ", btsymbol)
-
                     underlying.status = Underlying.ENTRYHIT
+
+                    underlying.update_statlist(status=underlying.status)
+
                     cp = paramsdict[underlying.contract.btsymbol]["cp"]
 
                     callchain = list()
@@ -396,8 +425,9 @@ class MyStrategy(bt.Strategy):
                     minima = min(calldf.difference)
                     selectedcestrike = calldf[calldf.difference == minima].btsymbol.values[-1]
                     selectedcechild = underlying.cestrikes[selectedcestrike]
-
+                    selectedcechild.init_statlist(underlying.row + 1, underlying.index + 0.1)
                     underlying.legs.append(selectedcechild)
+                    self.updatesheet(underlying.sheet, selectedcechild)
 
                     print(calldf)
                     print("Using Strike: ", selectedcestrike)
@@ -416,8 +446,9 @@ class MyStrategy(bt.Strategy):
                     minima = min(putdf.difference)
                     selectedpestrike = putdf[putdf.difference == minima].btsymbol.values[0]
                     selectedpechild = underlying.pestrikes[selectedpestrike]
-
+                    selectedpechild.init_statlist(underlying.row + 2, underlying.index + 0.2)
                     underlying.legs.append(selectedpechild)
+                    self.updatesheet(underlying.sheet, selectedcechild)
 
                     print(putdf)
                     print("Using Strike: ", selectedpestrike)
@@ -475,7 +506,7 @@ class MyStrategy(bt.Strategy):
                     underlying.orders.append(None)
                 else:
                     underlying.closed_at = self.lasttimestamp
-                    underlying.pnl = sum([c.pnl for c in underlying.children if c.pnl is not None])
+                    underlying.pnl = sum([c.pnl for c in underlying.closedlegs if c.pnl is not None])
                     underlying.status = Underlying.FORCECLOSED
 
     def get_child_datagroup(self, btsymbol):
@@ -504,6 +535,16 @@ class MyStrategy(bt.Strategy):
         self.cerebro.runrestart()
 
         return tickdata
+
+    def nextrowindex(self, sheet):
+        allvalues = sheet.get_all_values()
+        rowsfilled = len(allvalues)
+        rownext = rowsfilled + 1
+        index = ((rowsfilled - 1) // 3) + 1
+        return rownext, index
+
+    def updatesheet(self, sheet, obj):
+        sheet.update(f"A{obj.row}", [obj.statlist])
 
     def sendaclarke(self):
         self.clarkeq = Queue()
@@ -543,7 +584,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7496, _debug=False)
+store = bt.stores.IBStore(port=7497, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")

@@ -1,9 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date, time
 from typing import Optional, List, Dict
 
 from pandas import Timestamp
+
+index, _day, _date, time_in, time_out, symbol, expiry, strike, right, status, _type, size, buy_price, buy_cost, \
+buy_comm, sell_price, sell_cost, sell_comm, pnl, highest_from_entry_to_exit, \
+lowest_from_entry_to_exit = range(21)
+
+cols = dict(index=0, day=1, date=2, time_in=3, time_out=4, symbol=5, expiry=6, strike=7, right=8,
+            status=9, type=10, size=11, buy_price=12, buy_cost=13, buy_comm=14, sell_price=15,
+            sell_cost=16, sell_comm=17, pnl=18, highest_from_entry_to_exit=19, lowest_from_entry_to_exit=20)
 
 
 class SecType:
@@ -70,6 +78,43 @@ class Underlying:
         self.open_children = False
         self.close_children = False
         self.data = None
+        self.row = None
+        self.index = None
+        self.statlist = [""] * 21
+        self.sheet = None
+
+    def init_statlist(self, row, idx):
+        self.row = row
+        self.index = idx
+        self.statlist[index] = idx
+        self.statlist[_day] = datetime.now().strftime("%A")
+        self.statlist[_date] = datetime.now().strftime("%d/%m/%Y")
+        self.statlist[time_in] = ""
+        self.statlist[time_out] = ""
+        self.statlist[symbol] = self.contract.symbol
+        self.statlist[expiry] = str(self.contract.expiry)
+        self.statlist[strike] = self.contract.strike
+        self.statlist[right] = self.contract.right
+        self.statlist[status] = ""
+        self.statlist[_type] = ""
+        self.statlist[size] = ""
+        self.statlist[buy_price] = ""
+        self.statlist[buy_cost] = ""
+        self.statlist[buy_comm] = ""
+        self.statlist[sell_price] = ""
+        self.statlist[sell_cost] = ""
+        self.statlist[sell_comm] = ""
+        self.statlist[pnl] = ""
+        self.statlist[highest_from_entry_to_exit] = ""
+        self.statlist[lowest_from_entry_to_exit] = ""
+
+    def update_statlist(self, **kwargs):
+        for k, v in kwargs.items():
+            if k in cols:
+                indexofk = cols[k]
+                if type(v) in [datetime, date, time]:
+                    v = str(v)
+                self.statlist[indexofk] = v
 
 
 class Child:
@@ -111,3 +156,39 @@ class Child:
         self.selling_commission = selling_commission
         self.pnl = pnl
         self.data = None
+        self.row = None
+        self.index = None
+        self.statlist = [""] * 21
+
+    def init_statlist(self, row, idx):
+        self.row = row
+        self.index = idx
+        self.statlist[index] = idx
+        self.statlist[_day] = datetime.now().strftime("%A")
+        self.statlist[_date] = datetime.now().strftime("%d/%m/%Y")
+        self.statlist[time_in] = ""
+        self.statlist[time_out] = ""
+        self.statlist[symbol] = self.contract.symbol
+        self.statlist[expiry] = str(self.contract.expiry)
+        self.statlist[strike] = self.contract.strike
+        self.statlist[right] = self.contract.right
+        self.statlist[status] = self.status
+        self.statlist[_type] = ""
+        self.statlist[size] = ""
+        self.statlist[buy_price] = ""
+        self.statlist[buy_cost] = ""
+        self.statlist[buy_comm] = ""
+        self.statlist[sell_price] = ""
+        self.statlist[sell_cost] = ""
+        self.statlist[sell_comm] = ""
+        self.statlist[pnl] = ""
+        self.statlist[highest_from_entry_to_exit] = ""
+        self.statlist[lowest_from_entry_to_exit] = ""
+
+    def update_statlist(self, **kwargs):
+        for k, v in kwargs.items():
+            if k in cols:
+                indexofk = cols[k]
+                if type(v) in [datetime, date, time]:
+                    v = str(v)
+                self.statlist[indexofk] = v
