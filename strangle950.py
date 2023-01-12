@@ -171,8 +171,8 @@ tradingday = AutoOrderedDict()
 tradingday.date = nextclosingtime.date()
 tradingday.sessionstart = nextclosingtime.replace(hour=9, minute=15)
 tradingday.inittime = nextclosingtime.replace(hour=9, minute=40)
-tradingday.entrytime = nextclosingtime.replace(hour=15, minute=10, second=45)
-tradingday.exittime = nextclosingtime.replace(hour=15, minute=29)
+tradingday.entrytime = nextclosingtime.replace(hour=9, minute=49, second=45)
+tradingday.exittime = nextclosingtime.replace(hour=15, minute=25)
 tradingday.sessionend = nextclosingtime
 
 paramsdict = {
@@ -552,7 +552,8 @@ class MyStrategy(bt.Strategy):
             self.clarke.send_all_clients(self.clarkeq.get())
 
     def stop(self):
-        self.clarke.stop()
+        pass
+        # self.clarke.stop()
 
 
 class SecondsBackwardLookingFilter(object):
@@ -584,7 +585,7 @@ indexes = [
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7496, _debug=False)
+store = bt.stores.IBStore(port=7497, _debug=False)
 cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")
