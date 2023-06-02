@@ -163,12 +163,13 @@ class Xone:
         self.statlist[oetab] = self.origin.timeatbase
         self.statlist[oecurve] = self.origin.location
         self.statlist[oetrend] = self.origin.trend
-        self.statlist[csym] = self.children[0].symbol
-        self.statlist[cexpiry] = str(self.children[0].expiry)
-        self.statlist[cstrike] = self.children[0].contract.strike
-        self.statlist[cright] = self.children[0].contract.right
-        self.statlist[cstatus] = self.children[0].status
-        self.statlist[ctype] = self.children[0].type
+        if self.children:
+            self.statlist[csym] = self.children[0].symbol
+            self.statlist[cexpiry] = str(self.children[0].expiry)
+            self.statlist[cstrike] = self.children[0].contract.strike
+            self.statlist[cright] = self.children[0].contract.right
+            self.statlist[cstatus] = self.children[0].status
+            self.statlist[ctype] = self.children[0].type
 
     def update_statlist(self, **kwargs):
         for k, v in kwargs.items():

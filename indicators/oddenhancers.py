@@ -314,8 +314,11 @@ class DZone:
         self.demands[0].set_dzone(self)
 
     def calculate_atrwidth(self):
-        self.atrwidth = round(self.risk / self.dsi.atr[0])
-        return self.atrwidth
+        try:
+            self.atrwidth = round(self.risk / self.dsi.atr[0])
+            return self.atrwidth
+        except ValueError:
+            return 1
 
 
 class SZone:
@@ -498,8 +501,11 @@ class SZone:
         self.supplies[0].set_szone(self)
 
     def calculate_atrwidth(self):
-        self.atrwidth = round(self.risk / self.dsi.atr[0])
-        return self.atrwidth
+        try:
+            self.atrwidth = round(self.risk / self.dsi.atr[0])
+            return self.atrwidth
+        except ValueError:
+            return 1
 
 
 class DSIndicator(Indicator):

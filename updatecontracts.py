@@ -6,13 +6,12 @@ from typing import Optional
 import backtrader as bt
 import pandas as pd
 from sqlalchemy import and_, or_
-from sqlalchemy.exc import IntegrityError
 
 from mydatabase.database import *
 
 # Address
 HOST = ""
-PORT = 7497
+PORT = 7496
 
 # Resources
 NSELOTSIZECSV = "https://archives.nseindia.com/content/fo/fo_mktlots.csv"

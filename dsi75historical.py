@@ -5,21 +5,21 @@ from datetime import timedelta, time
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
-from dsicache.allobjects import loadobjects, dsi15_lts
+from dsicache.allobjects import loadobjects, dsi75_lts
 from indicators.oddenhancers import DSIndicator
 from mytelegram.raven import Raven
 from tradingschedule import lastclosingtime
 
 raven = Raven()
 
-if dsi15_lts == lastclosingtime:
-    msg = f"Cache Update\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsi15_lts}"
+if dsi75_lts == lastclosingtime:
+    msg = f"Cache Update\n Timeframe: Minutes\n Compression: 75\n Updated Till: {dsi75_lts}"
     print(msg)
     raven.send_all_clients(msg)
     raven.stop()
     sys.exit()
 
-fromdate = lastclosingtime.date() - timedelta(days=30)
+fromdate = lastclosingtime.date() - timedelta(weeks=20)
 sessionstart = time(hour=9, minute=15)
 sessionend = time(hour=15, minute=30)
 valid = [
@@ -176,7 +176,7 @@ class TasteStretejy(bt.Strategy):
         self.resource = AutoOrderedDict()
         self.states = self.deserialize()
 
-        nonce = 0
+        nonce = 1
         while nonce < len(self.datas):
             dsidata = self.datas[nonce]  # Minute 15
             trenddata = self.datas[nonce + 1]  # Minute 75
@@ -189,10 +189,9 @@ class TasteStretejy(bt.Strategy):
                 savedstate = None
             self.resource[dname].ds = DSIndicator(dsidata, trenddata, curvedata, savedstate=savedstate,
                                                   curvebreakoutsonly=dsidata.islive())
-            nonce += 3
+            nonce += 4
 
     def next(self):
-
         if self.data0.datetime.datetime(0) == lastclosingtime:
             self.cerebro.runstop()
 
@@ -202,12 +201,12 @@ class TasteStretejy(bt.Strategy):
             self.states.update(blocks)
         else:
             self.states = blocks
-        with open("dsicache/min15/15dsi.obj", "wb") as file:
+        with open("dsicache/min75/75dsi.obj", "wb") as file:
             pickle.dump(self.states, file)
 
     def deserialize(self):
         try:
-            with open("dsicache/min15/15dsi.obj", "rb") as file:
+            with open("dsicache/min75/75dsi.obj", "rb") as file:
                 dsidict = pickle.load(file)
             return dsidict
         except (EOFError, FileNotFoundError):
@@ -247,8 +246,15 @@ def getdata(ticker):
 
     cerebro.adddata(dailydata)
 
+    cerebro.resampledata(dailydata,
+                         timeframe=bt.TimeFrame.Weeks)
 
-tickers = ['NIFTY50_IND_NSE', "BANKNIFTY_IND_NSE", 'RELIANCE_STK_NSE', 'SBIN_STK_NSE', 'TATASTEEL_STK_NSE', 'HCLTECH_STK_NSE', 'TATAMOTOR_STK_NSE', 'ADANIPORT_STK_NSE', 'AXISBANK_STK_NSE', 'BAJFINANC_STK_NSE', 'BAJAJFINS_STK_NSE', 'BHARTIART_STK_NSE', 'INDUSINDB_STK_NSE', 'MARUTI_STK_NSE', 'ONGC_STK_NSE', 'TECHM_STK_NSE', 'TITAN_STK_NSE', 'WIPRO_STK_NSE', 'HDFC_STK_NSE', 'TCS_STK_NSE', 'HINDALCO_STK_NSE', 'JSWSTEEL_STK_NSE']
+
+tickers = ['NIFTY50_IND_NSE', "BANKNIFTY_IND_NSE", 'RELIANCE_STK_NSE', 'SBIN_STK_NSE', 'TATASTEEL_STK_NSE',
+           'HCLTECH_STK_NSE', 'TATAMOTOR_STK_NSE', 'ADANIPORT_STK_NSE', 'AXISBANK_STK_NSE', 'BAJFINANC_STK_NSE',
+           'BAJAJFINS_STK_NSE', 'BHARTIART_STK_NSE', 'INDUSINDB_STK_NSE', 'MARUTI_STK_NSE', 'ONGC_STK_NSE',
+           'TECHM_STK_NSE', 'TITAN_STK_NSE', 'WIPRO_STK_NSE', 'HDFC_STK_NSE', 'TCS_STK_NSE', 'HINDALCO_STK_NSE',
+           'JSWSTEEL_STK_NSE']
 
 while tickers:
     t = tickers[0]
@@ -263,6 +269,6 @@ while tickers:
     thestrats = cerebro.run()
 
 loadobjects()
-msg = f"Cache Update\n Timeframe: Minutes\n Compression: 15\n Updated Till: {dsi15_lts}"
+msg = f"Cache Update\n Timeframe: Minutes\n Compression: 75\n Updated Till: {dsi75_lts}"
 raven.send_all_clients(msg)
 raven.stop()

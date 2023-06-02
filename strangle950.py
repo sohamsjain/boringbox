@@ -1,6 +1,7 @@
 import sys
 from datetime import timedelta
 from queue import Queue
+from time import sleep
 
 import backtrader as bt
 import pandas as pd
@@ -13,6 +14,9 @@ from models3 import *
 from mygoogle.sprint import GoogleSprint
 from mylogger.logger import ExecutionReport
 from tradingschedule import nextclosingtime
+
+while datetime.now() < datetime.now().replace(hour=9, minute=10):
+    sleep(1)
 
 exRep = ExecutionReport(__file__.split("/")[-1].split(".")[0])
 
@@ -454,7 +458,7 @@ class MyStrategy(bt.Strategy):
                     print("Using Strike: ", selectedpestrike)
 
                     for leg in underlying.legs:
-                        size = leg.contract.lotsize
+                        size = leg.contract.lotsize * 3
                         order = self.sell(data=leg.data, size=size)
                         underlying.orders.append(order)
                         self.legsbyorder[order.ref] = leg
@@ -579,14 +583,14 @@ def getdata(ticker):
 
 indexes = [
     "NIFTY50_IND_NSE",
-    "BANKNIFTY_IND_NSE",
+    # "BANKNIFTY_IND_NSE",
 ]
 
 cerebro = bt.Cerebro(runonce=False)
 cerebro.addstrategy(MyStrategy)
 
-store = bt.stores.IBStore(port=7497, _debug=False)
-cerebro.setbroker(store.getbroker())
+store = bt.stores.IBStore(port=7496, _debug=False)
+# cerebro.setbroker(store.getbroker())
 
 cerebro.addcalendar("BSE")
 

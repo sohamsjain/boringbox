@@ -112,13 +112,14 @@ class Skyler:
     def stop(self):
         self.updater.stop()
 
-    def send_all_clients(self, message):
-        for name, chat_id in self.clients.items():
-            self.send_message(chat_id, message)
+    def send_all_clients(self, message, *args, **kwargs):
+        clients = self.clients.copy()
+        for name, chat_id in clients.items():
+            self.send_message(chat_id, message, *args, **kwargs)
 
-    def send_message(self, chat_id, message):
+    def send_message(self, chat_id, message, *args, **kwargs):
         try:
-            self.bot.send_message(chat_id, message)
+            self.bot.send_message(chat_id, message, *args, **kwargs)
         except TimedOut:
             pass
 
